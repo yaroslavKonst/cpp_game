@@ -10,6 +10,11 @@ class Tile
 public:
 	enum Type { Grass, Stone };
 
+	Tile(type)
+	{
+		_type = type;
+	}
+
 	void Draw() const;
 
 	bool GetAttr(int attr) const
@@ -27,6 +32,7 @@ public:
 	}
 
 private:
+	Type _type;
 	uint32_t _attributes;
 };
 
