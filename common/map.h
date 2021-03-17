@@ -2,15 +2,23 @@
 #define MAP_H
 
 #include <vector>
+#include <iostream>
 
 #define CHUNKSIZE 32
+
+enum Type { Grass, Stone };
 
 class Tile
 {
 public:
-	enum Type { Grass, Stone };
+	//enum Type { Grass, Stone };
 
-	Tile(type)
+    Tile()
+    {
+        _type = Type::Grass;
+    }
+
+	Tile(Type type)
 	{
 		_type = type;
 	}
@@ -31,6 +39,11 @@ public:
 		}
 	}
 
+    Type GetType()
+    {
+        return _type;
+    }
+
 private:
 	Type _type;
 	uint32_t _attributes;
@@ -40,13 +53,28 @@ class Layer
 {
 public:
 	Layer():
-		_tiles(CHUNKSIZE * CHUNKSIZE);
+		_tiles(CHUNKSIZE * CHUNKSIZE)
 	{ }
 
 	void SetTile(size_t x, size_t y, const Tile& tile)
 	{
 		_tiles[y * CHUNKSIZE + x] = tile;
 	}
+
+    void PrintLayer ()
+    {
+        for (int i = 0; i < CHUNKSIZE; i++) {
+            for (int j = 0; j < CHUNKSIZE; j++) {
+                if (_tiles[j * CHUNKSIZE + i].GetType() == Type::Grass) {
+                    std::cout << "/ ";
+                } else {
+                    std::cout << "0 ";
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
 
 private:
 	std::vector<Tile> _tiles;
@@ -63,7 +91,8 @@ public:
 	{
 		for (Layer* layer : _layers) {
 			delete layer;
-		}
+        }
+
 	}
 
 	void AddLayer(Layer* layer)
@@ -71,10 +100,18 @@ public:
 		_layers.push_back(layer);
 	}
 
+    void PrintChunk()
+    {
+        for (Layer* layer : _layers) {
+            layer->PrintLayer();
+        }
+    }
+
 private:
 	std::vector<Layer*> _layers;
 };
 
+/*
 class Map
 {
 public:
@@ -93,5 +130,5 @@ public:
 private:
 	std::map<std::pair<int32_t, int32_t>, Chunk*> _chunks;
 };
-
+*/
 #endif
