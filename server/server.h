@@ -8,15 +8,12 @@
 #include "common/map.h"
 #include "common/generator.h"
 #include "common/entity.h"
+#include "common/connection.h"
 
 class Server
 {
 public:
 	class Event
-	{
-	};
-
-	class Connection
 	{
 	};
 
