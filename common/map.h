@@ -3,20 +3,19 @@
 
 #include <vector>
 #include <iostream>
+#include <map>
 
 #define CHUNKSIZE 32
-
-enum Type { Grass, Stone };
 
 class Tile
 {
 public:
-	//enum Type { Grass, Stone };
+	enum Type { Grass, Stone };
 
-    Tile()
-    {
-        _type = Type::Grass;
-    }
+	Tile()
+	{
+		_type = Type::Grass;
+	}
 
 	Tile(Type type)
 	{
@@ -39,10 +38,10 @@ public:
 		}
 	}
 
-    Type GetType()
-    {
-        return _type;
-    }
+	Type GetType()
+	{
+		return _type;
+	}
 
 private:
 	Type _type;
@@ -60,21 +59,22 @@ public:
 	{
 		_tiles[y * CHUNKSIZE + x] = tile;
 	}
-
-    void PrintLayer ()
-    {
-        for (int i = 0; i < CHUNKSIZE; i++) {
-            for (int j = 0; j < CHUNKSIZE; j++) {
-                if (_tiles[j * CHUNKSIZE + i].GetType() == Type::Grass) {
-                    std::cout << "/ ";
-                } else {
-                    std::cout << "0 ";
-                }
-            }
-            std::cout << std::endl;
-        }
-    }
-
+	
+	void PrintLayer()
+	{
+		for (int i = 0; i < CHUNKSIZE; i++) {
+			for (int j = 0; j < CHUNKSIZE; j++) {
+				if (_tiles[j * CHUNKSIZE + i].GetType() ==
+						Tile::Grass) {
+					std::cout << "/ ";
+				} else {
+					std::cout << "0 ";
+				}
+			}
+			
+			std::cout << std::endl;
+		}
+	}
 
 private:
 	std::vector<Tile> _tiles;
@@ -99,19 +99,19 @@ public:
 	{
 		_layers.push_back(layer);
 	}
-
-    void PrintChunk()
-    {
-        for (Layer* layer : _layers) {
-            layer->PrintLayer();
-        }
-    }
+	
+	void PrintChunk()
+	{
+		for (Layer* layer : _layers) {
+			layer->PrintLayer();
+		}
+	}
 
 private:
 	std::vector<Layer*> _layers;
 };
 
-/*
+
 class Map
 {
 public:
@@ -124,11 +124,11 @@ public:
 
 	void AddChunk(int32_t x, int32_t y, Chunk* chunk)
 	{
-		_chunks[std::pair(x, y)] = chunk;
+		_chunks[std::pair<int32_t, int32_t>(x, y)] = chunk;
 	}
 
 private:
 	std::map<std::pair<int32_t, int32_t>, Chunk*> _chunks;
 };
-*/
+
 #endif

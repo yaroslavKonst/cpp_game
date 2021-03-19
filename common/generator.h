@@ -43,9 +43,9 @@ Chunk* generator (uint64_t seed, int32_t x, int32_t y) {
         Postgen[i] = Pregen[lu] + Pregen[mu] + Pregen[ru] + Pregen[rm] + 
                 Pregen[rd] + Pregen[md] + Pregen[ld] + Pregen[lm];
         if (Postgen[i] > 3 && Postgen[i] < 13) {
-            L.SetTile(i % CHUNKSIZE, i / CHUNKSIZE, Tile(Type::Grass));
+            L.SetTile(i % CHUNKSIZE, i / CHUNKSIZE, Tile(Tile::Grass));
         } else {
-            L.SetTile(i % CHUNKSIZE, i / CHUNKSIZE, Tile(Type::Stone));
+            L.SetTile(i % CHUNKSIZE, i / CHUNKSIZE, Tile(Tile::Stone));
         }
     }
     Chunk* C = new Chunk;
