@@ -1,6 +1,7 @@
 #ifndef MAP_H
 #define MAP_H
 
+#include <utility>
 #include <vector>
 #include <iostream>
 #include <map>
@@ -87,48 +88,47 @@ public:
 		_layers(0)
 	{ }
 
-	~Chunk()
-	{
-		for (Layer* layer : _layers) {
-			delete layer;
-        }
+//	~Chunk()
+//	{
+//		for (auto layer : _layers) {
+//			delete layer;
+//        }
+//	}
 
-	}
-
-	void AddLayer(Layer* layer)
+	void AddLayer(const std::shared_ptr<Layer>& layer)
 	{
 		_layers.push_back(layer);
 	}
 	
 	void PrintChunk()
 	{
-		for (Layer* layer : _layers) {
+		for (const auto& layer : _layers) {
 			layer->PrintLayer();
 		}
 	}
 
 private:
-	std::vector<Layer*> _layers;
+	std::vector<std::shared_ptr<Layer>> _layers;
 };
 
 
 class Map
 {
 public:
-	~Map()
-	{
-		for (std::pair<std::pair<int32_t, int32_t>, Chunk*> chunk : _chunks) {
-			delete chunk.second;
-		}
-	}
+//	~Map()
+//	{
+//		for (std::pair<std::pair<int32_t, int32_t>, std::shared_ptr<Chunk>> chunk : _chunks) {
+//			delete chunk.second;
+//		}
+//	}
 
-	void AddChunk(int32_t x, int32_t y, Chunk* chunk)
+	void AddChunk(int32_t x, int32_t y, std::shared_ptr<Chunk> chunk)
 	{
 		_chunks[std::pair<int32_t, int32_t>(x, y)] = chunk;
 	}
 
 private:
-	std::map<std::pair<int32_t, int32_t>, Chunk*> _chunks;
+	std::map<std::pair<int32_t, int32_t>, std::shared_ptr<Chunk>> _chunks;
 };
 
 #endif
