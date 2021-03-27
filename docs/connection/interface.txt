@@ -1,0 +1,57 @@
+Listener class.
+	Accepts new connections on the server side.
+
+	Constructor:
+		Parameters:
+			callback function called on new connection,
+			string with ip address,
+			port.
+
+	Listen:
+		Accept loop. No new thread is created.
+
+		Parameters:
+			wait forever or return after accept attempt.
+
+	Stop:
+		Interrupt accept loop (if Listener is in loop mode).
+
+	GetPipe:
+		Act as a new connection is accepted, but two pipes
+		are created instead.
+
+		Return:
+			Connection object.
+
+Connector class.
+	Creates new connections on the client side.
+
+	Connect:
+		Establis a new connection.
+
+		Parameters:
+			string with IP address,
+			port.
+
+		Return:
+			Connection object.
+			
+
+Connection class.
+
+	Represents a bidirectional connection.
+
+	Send:
+		Send bytes of data.
+
+		Parameters:
+			char vector.
+
+	Receive:
+		Receive data.
+
+		Return:
+			char vector.
+
+	Close:
+		Close connection.
