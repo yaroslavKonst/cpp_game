@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-Chunk* generator (uint64_t seed, int32_t x, int32_t y) {
+std::shared_ptr<Chunk> generator (uint64_t seed, int32_t x, int32_t y) {
     uint64_t ChunkSeed = seed;
     ChunkSeed = ChunkSeed ^ (int64_t(x) << 32);
     ChunkSeed = ChunkSeed ^ (int64_t(y) & 0xFFFFFFFF);
@@ -48,8 +48,8 @@ Chunk* generator (uint64_t seed, int32_t x, int32_t y) {
             L.SetTile(i % CHUNKSIZE, i / CHUNKSIZE, Tile(Tile::Stone));
         }
     }
-    Chunk* C = new Chunk;
-    C->AddLayer(&L);
+    auto C = std::make_shared<Chunk>();
+    C->AddLayer(std::make_shared<Layer>(L));
     return C;
 }
 
