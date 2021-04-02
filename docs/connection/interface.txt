@@ -7,6 +7,10 @@ Listener class.
 			string with ip address,
 			port.
 
+	OpenSocket:
+		Create and bind a socket.
+		Is not used when no network players are expected.
+
 	Listen:
 		Accept loop. No new thread is created.
 
@@ -38,7 +42,6 @@ Connector class.
 			
 
 Connection class.
-
 	Represents a bidirectional connection.
 
 	Send:
