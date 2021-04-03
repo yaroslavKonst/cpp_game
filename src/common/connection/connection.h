@@ -1,26 +1,34 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
+#include <string>
+#include <vector>
+#include <utility>
+#include <sys/types.h>
+
+class Listener;
+class Connector;
+class Connection;
+
 class Listener
 {
 public:
-	Listener(std::string ip, uint16_t port, void (*callback)(Connection));
+	Listener(std::string ip, uint16_t port);
+	~Listener();
 
-	void OpenSocket();
+	bool OpenSocket();
 
-	void Listen(bool loop);
+	void CloseSocket();
 
-	void Stop();
+	Connection Accept();
 
-	Connection GetPipe();
+	std::pair<Connection, Connection> GetPipe();
 
 private:
-	void (*_callback)(Connection);
 	int _descriptor;
 	std::string _ip;
 	uint16_t _port;
 	bool _work;
-	void AcceptConnection();
 };
 
 class Connector
@@ -34,12 +42,12 @@ class Connection
 public:
 	Connection()
 	{
-		_valid = true;
+		_valid = false;
 	}
 
 	enum Type { Socket, Pipe };
 
-	void Send(std::vector<char> data);
+	void Send(const std::vector<char>& data);
 
 	std::vector<char> Receive();
 
