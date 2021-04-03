@@ -1,49 +1,72 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
-#include <unistd.h>
-#include <socket.h>
-#include <fcntl.h>
+#include <string>
+#include <vector>
+#include <utility>
+#include <sys/types.h>
 
-class Connection
-{
-public:
-	enum Type { Socket, Pipe };
-
-	void Send(std::vector<char> data);
-
-	std::vector<char> Receive(size_t* size);
-
-
-
-private:
-	Type _type;
-	int _descriptor[2];
-};
+class Listener;
+class Connector;
+class Connection;
 
 class Listener
 {
 public:
-	Listener(void (*callback)(Connection))
-	{
-		_callback = callback;
-	}
+	Listener(std::string ip, uint16_t port);
+	~Listener();
 
-	void Listen(bool loop);
+	bool OpenSocket();
 
-	void Stop();
+	void CloseSocket();
 
-	Connection GetPipe();
+	Connection Accept();
+
+	std::pair<Connection, Connection> GetPipe();
 
 private:
-	void (*_callback)(Connection);
 	int _descriptor;
+	std::string _ip;
+	uint16_t _port;
+	bool _work;
 };
 
 class Connector
 {
 public:
-	Connection Connect();
+	Connection Connect(std::string ip, uint16_t port);
+};
+
+class Connection
+{
+public:
+	Connection()
+	{
+		_valid = false;
+	}
+
+	enum Type { Socket, Pipe };
+
+	void Send(const std::vector<char>& data);
+
+	std::vector<char> Receive();
+
+	void Close();
+
+	bool isValid()
+	{
+		return _valid;
+	}
+
+	friend class Listener;
+	friend class Connector;
+
+private:
+	Type _type;
+	int _descriptor[2];
+	bool _valid;
+
+	void CloseStreams();
 };
 
 #endif
