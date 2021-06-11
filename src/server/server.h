@@ -10,6 +10,12 @@
 #include "common/entity.h"
 #include "common/connection.h"
 
+class IOModule
+{
+private:
+	std::list<Connection> _connections;
+};
+
 class Server
 {
 public:
