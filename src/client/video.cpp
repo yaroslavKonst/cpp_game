@@ -2,11 +2,21 @@
 #include <cstring>
 #include "video.h"
 
-Video::Video(int width, int height)
+Video::Video(int width, int height, bool validate):
+	validationLayers(0)
 {
+	enableValidationLayers = validate;
+	if (validate) {
+		validationLayers.push_back(
+			"VK_LAYER_LUNARG_core_validation");
+		validationLayers.push_back(
+			"VK_LAYER_LUNARG_parameter_validation");
+		validationLayers.push_back(
+			"VK_LAYER_LUNARG_standard_validation");
+	}
+
 	InitWindow(width, height);
 	InitVulkan();
-	PickPhysicalDevice();
 }
 
 Video::~Video()
@@ -20,7 +30,12 @@ void Video::InitWindow(int width, int height)
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	window = glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);
+	window = glfwCreateWindow(
+		width,
+		height,
+		"Tile Game",
+		nullptr,
+		nullptr);
 }
 
 void Video::CloseWindow()
@@ -30,6 +45,14 @@ void Video::CloseWindow()
 }
 
 void Video::InitVulkan()
+{
+	CreateInstance();
+	CreateSurface();
+	PickPhysicalDevice();
+	CreateLogicalDevice();
+}
+
+void Video::CreateInstance()
 {
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -48,12 +71,6 @@ void Video::InitVulkan()
 	glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 	createInfo.enabledExtensionCount = glfwExtensionCount;
 	createInfo.ppEnabledExtensionNames = glfwExtensions;
-
-	const std::vector<const char*> validationLayers = {
-		"VK_LAYER_KHRONOS_validation"
-	};
-
-	bool enableValidationLayers = true;
 
 	if (enableValidationLayers) {
 		if (!CheckValidationLayerSupport(validationLayers)) {
@@ -74,7 +91,18 @@ void Video::InitVulkan()
 
 void Video::CloseVulkan()
 {
+	vkDestroyDevice(device, nullptr);
+	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(instance, nullptr);
+}
+
+void Video::CreateSurface()
+{
+	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) !=
+		VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create window surface");
+	}
 }
 
 void Video::PickPhysicalDevice()
@@ -91,7 +119,7 @@ void Video::PickPhysicalDevice()
 	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
 	for (const auto& device : devices) {
-		if (isDeviceSuitable(device)) {
+		if (IsDeviceSuitable(device)) {
 			physicalDevice = device;
 			break;
 		}
@@ -102,6 +130,50 @@ void Video::PickPhysicalDevice()
 	}
 }
 
+void Video::CreateLogicalDevice()
+{
+	QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
+
+	VkDeviceQueueCreateInfo queueCreateInfo{};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+	queueCreateInfo.queueCount = 1;
+
+	float queuePriority = 1.0f;
+	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkPhysicalDeviceFeatures deviceFeatures{};
+
+	VkDeviceCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.queueCreateInfoCount = 1;
+	createInfo.pQueueCreateInfos = &queueCreateInfo;
+
+	createInfo.pEnabledFeatures = &deviceFeatures;
+
+	createInfo.enabledExtensionCount = 0;
+
+	if (enableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<uint32_t>(
+			validationLayers.size());
+		createInfo.ppEnabledLayerNames = validationLayers.data();
+	} else {
+		createInfo.enabledLayerCount = 0;
+	}
+
+	if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) !=
+		VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create logical device");
+	}
+
+	vkGetDeviceQueue(
+		device,
+		indices.graphicsFamily.value(),
+		0,
+		&graphicsQueue);
+}
+
 bool Video::IsDeviceSuitable(VkPhysicalDevice device) {
 	VkPhysicalDeviceProperties deviceProperties;
 	VkPhysicalDeviceFeatures deviceFeatures;
@@ -110,7 +182,37 @@ bool Video::IsDeviceSuitable(VkPhysicalDevice device) {
 
 	return deviceProperties.deviceType ==
 		VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
-           deviceFeatures.geometryShader;
+           deviceFeatures.geometryShader &&
+	   FindQueueFamilies(device).graphicsFamily.has_value();
+}
+
+Video::QueueFamilyIndices Video::FindQueueFamilies(VkPhysicalDevice device)
+{
+	QueueFamilyIndices indices;
+
+	uint32_t queueFamilyCount = 0;
+
+	vkGetPhysicalDeviceQueueFamilyProperties(
+		device,
+		&queueFamilyCount,
+		nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(
+		device,
+		&queueFamilyCount,
+		queueFamilies.data());
+
+	int i = 0;
+	for (const auto& queueFamily : queueFamilies) {
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			indices.graphicsFamily = i;
+		}
+
+		i++;
+	}
+
+	return indices;
 }
 
 bool Video::CheckValidationLayerSupport(
@@ -124,8 +226,13 @@ bool Video::CheckValidationLayerSupport(
 
 	for (const char* layerName : validationLayers) {
 		bool layerFound = false;
+
+		std::cout << "Layer: " << layerName << std::endl;
 		
 		for (const auto& layerProperties : availableLayers) {
+			std::cout << "Have: " << layerProperties.layerName <<
+				std::endl;
+
 			if (
 				strcmp(layerName,
 				layerProperties.layerName) == 0)
