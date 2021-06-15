@@ -63,6 +63,8 @@ class Video
 	void DestroyImageViews();
 	void CreateGraphicsPipeline();
 
+	VkShaderModule CreateShaderModule(uint32_t size, const uint32_t* code);
+
 	bool IsDeviceSuitable(VkPhysicalDevice device);
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 	bool CheckValidationLayerSupport(
