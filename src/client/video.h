@@ -39,6 +39,7 @@ class Video
 	std::vector<VkImage> swapchainImages;
 	VkFormat swapchainImageFormat;
 	VkExtent2D swapchainExtent;
+	std::vector<VkImageView> swapchainImageViews;
 
 	uint32_t width;
 	uint32_t height;
@@ -58,6 +59,10 @@ class Video
 	void PickPhysicalDevice();
 	void CreateLogicalDevice();
 	void CreateSwapchain();
+	void CreateImageViews();
+	void DestroyImageViews();
+	void CreateGraphicsPipeline();
+
 	bool IsDeviceSuitable(VkPhysicalDevice device);
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 	bool CheckValidationLayerSupport(
