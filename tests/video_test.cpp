@@ -1,5 +1,5 @@
 #include <unistd.h>
-#include "../src/client/video.h"
+#include "../src/client/video/video.h"
 
 int main()
 {
