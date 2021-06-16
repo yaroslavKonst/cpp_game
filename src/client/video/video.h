@@ -11,11 +11,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <iostream>
-
 class Video
 {
-	const int MAX_FRAMES_IN_FLIGHT = 2;
+	const size_t MAX_FRAMES_IN_FLIGHT = 2;
 
 	struct QueueFamilyIndices
 	{
@@ -51,7 +49,10 @@ class Video
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
+	std::vector<VkFence> imagesInFlight;
 	size_t currentFrame;
+
+	bool framebufferResized;
 
 	uint32_t width;
 	uint32_t height;
@@ -81,6 +82,13 @@ class Video
 	void CreateCommandBuffers();
 	void CreateSyncObjects();
 	void DestroySyncObjects();
+	void RecreateSwapchain();
+	void CleanupSwapchain();
+
+	static void FramebufferResizeCallback(
+		GLFWwindow* window,
+		int width,
+		int height);
 
 	VkShaderModule CreateShaderModule(uint32_t size, const uint32_t* code);
 

@@ -37,13 +37,16 @@ void Video::InitWindow()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
 	window = glfwCreateWindow(
 		width,
 		height,
 		"Tile Game",
 		nullptr,
 		nullptr);
+
+	glfwSetWindowUserPointer(window, this);
+	glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 }
 
 void Video::CloseWindow()
@@ -55,6 +58,8 @@ void Video::CloseWindow()
 void Video::InitVulkan()
 {
 	currentFrame = 0;
+	framebufferResized = false;
+
 	CreateInstance();
 	CreateSurface();
 	PickPhysicalDevice();
@@ -679,6 +684,7 @@ void Video::CreateSyncObjects()
 	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+	imagesInFlight.resize(swapchainImages.size(), VK_NULL_HANDLE);
 
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -741,6 +747,38 @@ void Video::DestroySyncObjects()
 	}
 }
 
+void Video::RecreateSwapchain()
+{
+	vkDeviceWaitIdle(device);
+
+	CleanupSwapchain();
+
+	CreateSwapchain();
+	CreateImageViews();
+	CreateRenderPass();
+	CreateGraphicsPipeline();
+	CreateFramebuffers();
+	CreateCommandBuffers();
+	CreateSyncObjects();
+
+}
+
+void Video::CleanupSwapchain()
+{
+	DestroySyncObjects();
+	vkFreeCommandBuffers(
+		device,
+		commandPool,
+		static_cast<uint32_t>(commandBuffers.size()),
+		commandBuffers.data());
+	DestroyFramebuffers();
+	vkDestroyPipeline(device, graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+	vkDestroyRenderPass(device, renderPass, nullptr);
+	DestroyImageViews();
+	vkDestroySwapchainKHR(device, swapchain, nullptr);
+}
+
 VkShaderModule Video::CreateShaderModule(uint32_t size, const uint32_t* code)
 {
 	VkShaderModuleCreateInfo createInfo{};
@@ -757,6 +795,16 @@ VkShaderModule Video::CreateShaderModule(uint32_t size, const uint32_t* code)
 	}
 
 	return shaderModule;
+}
+
+void Video::FramebufferResizeCallback(
+	GLFWwindow* window,
+	int width,
+	int height)
+{
+	Video* video = reinterpret_cast<Video*>(
+		glfwGetWindowUserPointer(window));
+	video->framebufferResized = true;
 }
 
 Video::SwapchainSupportDetails Video::QuerySwapchainSupport(
@@ -963,13 +1011,8 @@ bool Video::CheckValidationLayerSupport(
 
 	for (const char* layerName : validationLayers) {
 		bool layerFound = false;
-
-		std::cout << "Layer: " << layerName << std::endl;
 		
 		for (const auto& layerProperties : availableLayers) {
-			std::cout << "Have: " << layerProperties.layerName <<
-				std::endl;
-
 			if (
 				strcmp(layerName,
 				layerProperties.layerName) == 0)
@@ -998,24 +1041,40 @@ void Video::DrawFrame()
 		VK_TRUE,
 		UINT64_MAX);
 
-	vkResetFences(
-		device,
-		1,
-		&inFlightFences[currentFrame]);
-
-	vkAcquireNextImageKHR(
+	VkResult result = vkAcquireNextImageKHR(
 		device,
 		swapchain,
 		UINT64_MAX,
-		imageAvailableSemaphores[currentframe],
+		imageAvailableSemaphores[currentFrame],
 		VK_NULL_HANDLE,
 		&imageIndex);
+
+	if (result != VK_SUCCESS) {
+		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			RecreateSwapchain();
+			return;
+		} else if (result != VK_SUBOPTIMAL_KHR) {
+			throw std::runtime_error(
+				"failed to acquire swapchain image");
+		}
+	}
+
+	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+		vkWaitForFences(
+			device,
+			1,
+			&imagesInFlight[imageIndex],
+			VK_TRUE,
+			UINT64_MAX);
+	}
+
+	imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
 	VkSemaphore waitSemaphores[] = {
-		imageAvailableSemaphores[currentframe]
+		imageAvailableSemaphores[currentFrame]
 	};
 
 	VkPipelineStageFlags waitStages[] = {
@@ -1030,11 +1089,16 @@ void Video::DrawFrame()
 	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
 	VkSemaphore signalSemaphores[] = {
-		renderFinishedSemaphores[currentframe]
+		renderFinishedSemaphores[currentFrame]
 	};
 
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
+
+	vkResetFences(
+		device,
+		1,
+		&inFlightFences[currentFrame]);
 
 	if (vkQueueSubmit(
 		graphicsQueue,
@@ -1057,7 +1121,17 @@ void Video::DrawFrame()
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
 
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+	result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+	if (result != VK_SUCCESS || framebufferResized) {
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || framebufferResized) {
+			framebufferResized = false;
+			RecreateSwapchain();
+		} else if (result != VK_SUBOPTIMAL_KHR) {
+			throw std::runtime_error(
+				"failed to present swapchain image");
+		}
+	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
