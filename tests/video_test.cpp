@@ -4,6 +4,6 @@
 int main()
 {
 	Video video(800, 600, true);
-	sleep(10);
+	video.Start();
 	return 0;
 }

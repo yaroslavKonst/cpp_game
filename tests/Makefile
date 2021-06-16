@@ -12,6 +12,6 @@ connection_test: connection_test.cpp
 	../build/$@
 
 video_test: video_test.cpp
-	g++ -Wall -std=c++17 -c ../src/client/video/video.cpp -o ../build/video.o
-	g++ -Wall -std=c++17 -fopenmp -o ../build/$@ $< ../build/video.o $(LD_VULKAN_FLAGS)
+	g++ -Wall -std=c++17 -c ../src/client/video/video.cpp -o ../build/video.o -g
+	g++ -Wall -std=c++17 -fopenmp -o ../build/$@ $< ../build/video.o $(LD_VULKAN_FLAGS) -g
 	../build/$@

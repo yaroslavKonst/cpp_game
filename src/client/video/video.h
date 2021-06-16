@@ -15,6 +15,8 @@
 
 class Video
 {
+	const int MAX_FRAMES_IN_FLIGHT = 2;
+
 	struct QueueFamilyIndices
 	{
 		std::optional<uint32_t> graphicsFamily;
@@ -40,6 +42,16 @@ class Video
 	VkFormat swapchainImageFormat;
 	VkExtent2D swapchainExtent;
 	std::vector<VkImageView> swapchainImageViews;
+	VkRenderPass renderPass;
+	VkPipelineLayout pipelineLayout;
+	VkPipeline graphicsPipeline;
+	std::vector<VkFramebuffer> swapchainFramebuffers;
+	VkCommandPool commandPool;
+	std::vector<VkCommandBuffer> commandBuffers;
+	std::vector<VkSemaphore> imageAvailableSemaphores;
+	std::vector<VkSemaphore> renderFinishedSemaphores;
+	std::vector<VkFence> InFlightFences;
+	size_t currentFrame;
 
 	uint32_t width;
 	uint32_t height;
@@ -62,6 +74,13 @@ class Video
 	void CreateImageViews();
 	void DestroyImageViews();
 	void CreateGraphicsPipeline();
+	void CreateRenderPass();
+	void CreateFramebuffers();
+	void DestroyFramebuffers();
+	void CreateCommandPool();
+	void CreateCommandBuffers();
+	void CreateSyncObjects();
+	void DestroySyncObjects();
 
 	VkShaderModule CreateShaderModule(uint32_t size, const uint32_t* code);
 
@@ -79,9 +98,11 @@ class Video
 		const VkSurfaceCapabilitiesKHR& capabilities);
 
 	void MainLoop();
+	void DrawFrame();
 public:
 	Video(int w, int h, bool validate = false);
 	~Video();
+	void Start();
 };
 
 #endif
