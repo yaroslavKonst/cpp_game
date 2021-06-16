@@ -50,7 +50,7 @@ class Video
 	std::vector<VkCommandBuffer> commandBuffers;
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
-	std::vector<VkFence> InFlightFences;
+	std::vector<VkFence> inFlightFences;
 	size_t currentFrame;
 
 	uint32_t width;

@@ -678,9 +678,14 @@ void Video::CreateSyncObjects()
 {
 	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	VkFenceCreateInfo fenceInfo{};
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
 		auto rVal = vkCreateSemaphore(
@@ -688,7 +693,7 @@ void Video::CreateSyncObjects()
 			&semaphoreInfo,
 			nullptr,
 			&imageAvailableSemaphores[i]);
-	       
+
 		if (rVal != VK_SUCCESS) {
 			throw std::runtime_error(
 				"failed to create semaphore");
@@ -699,10 +704,21 @@ void Video::CreateSyncObjects()
 			&semaphoreInfo,
 			nullptr,
 			&renderFinishedSemaphores[i]);
-	       
+
 		if (rVal != VK_SUCCESS) {
 			throw std::runtime_error(
 				"failed to create semaphore");
+		}
+
+		rVal = vkCreateFence(
+			device,
+			&fenceInfo,
+			nullptr,
+			&inFlightFences[i]);
+
+		if (rVal != VK_SUCCESS) {
+			throw std::runtime_error(
+				"failed to create fence");
 		}
 	}
 }
@@ -717,6 +733,10 @@ void Video::DestroySyncObjects()
 		vkDestroySemaphore(
 			device,
 			imageAvailableSemaphores[i],
+			nullptr);
+		vkDestroyFence(
+			device,
+			inFlightFences[i],
 			nullptr);
 	}
 }
@@ -971,6 +991,18 @@ void Video::DrawFrame()
 {
 	uint32_t imageIndex;
 
+	vkWaitForFences(
+		device,
+		1,
+		&inFlightFences[currentFrame],
+		VK_TRUE,
+		UINT64_MAX);
+
+	vkResetFences(
+		device,
+		1,
+		&inFlightFences[currentFrame]);
+
 	vkAcquireNextImageKHR(
 		device,
 		swapchain,
@@ -1004,8 +1036,11 @@ void Video::DrawFrame()
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) !=
-		VK_SUCCESS)
+	if (vkQueueSubmit(
+		graphicsQueue,
+		1,
+		&submitInfo,
+		inFlightFences[currentFrame]) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to submit command buffer");
 	}
