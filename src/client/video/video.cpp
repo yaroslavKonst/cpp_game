@@ -745,6 +745,11 @@ void Video::DestroySyncObjects()
 			inFlightFences[i],
 			nullptr);
 	}
+
+	imageAvailableSemaphores.clear();
+	renderFinishedSemaphores.clear();
+	inFlightFences.clear();
+	imagesInFlight.clear();
 }
 
 void Video::RecreateSwapchain()
