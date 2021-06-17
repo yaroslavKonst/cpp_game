@@ -54,19 +54,17 @@ class Video
 
 	bool framebufferResized;
 
-	uint32_t width;
-	uint32_t height;
-
 	bool enableValidationLayers;
 	std::vector<const char*> validationLayers;
 
 	std::vector<const char*> deviceExtensions;
 
-	void InitWindow();
+	void InitWindow(int width, int height);
 	void CloseWindow();
 
 	void InitVulkan();
 	void CloseVulkan();
+
 	void CreateInstance();
 	void CreateSurface();
 	void PickPhysicalDevice();
@@ -108,7 +106,7 @@ class Video
 	void MainLoop();
 	void DrawFrame();
 public:
-	Video(int w, int h, bool validate = false);
+	Video(int width, int height, bool validate = false);
 	~Video();
 	void Start();
 };

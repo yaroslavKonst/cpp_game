@@ -5,12 +5,9 @@
 #include "shaders/vert.spv"
 #include "shaders/frag.spv"
 
-Video::Video(int w, int h, bool validate):
+Video::Video(int width, int height, bool validate):
 	validationLayers(0)
 {
-	width = w;
-	height = h;
-
 	enableValidationLayers = validate;
 	if (validate) {
 		validationLayers.push_back(
@@ -23,7 +20,7 @@ Video::Video(int w, int h, bool validate):
 
 	deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-	InitWindow();
+	InitWindow(width, height);
 	InitVulkan();
 }
 
@@ -33,7 +30,7 @@ Video::~Video()
 	CloseWindow();
 }
 
-void Video::InitWindow()
+void Video::InitWindow(int width, int height)
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -754,6 +751,16 @@ void Video::DestroySyncObjects()
 
 void Video::RecreateSwapchain()
 {
+	int width = 0;
+	int height = 0;
+
+	glfwGetFramebufferSize(window, &width, &height);
+
+	while (width == 0 || height == 0) {
+		glfwGetFramebufferSize(window, &width, &height);
+		glfwWaitEvents();
+	}
+
 	vkDeviceWaitIdle(device);
 
 	CleanupSwapchain();
