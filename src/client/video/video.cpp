@@ -67,6 +67,7 @@ void Video::InitVulkan()
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandPool();
+	CreateVertexBuffer();
 	CreateCommandBuffers();
 	CreateSyncObjects();
 }
@@ -118,6 +119,7 @@ void Video::CloseVulkan()
 	vkDestroyRenderPass(device, renderPass, nullptr);
 	DestroyImageViews();
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
+	vkDestroyBuffer(device, vertexBuffer, nullptr);
 	vkDestroyDevice(device, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(instance, nullptr);
@@ -363,13 +365,18 @@ void Video::CreateGraphicsPipeline()
 		fragShaderStageInfo
 	};
 
+	auto bindingDescription = Vertex::GetBindingDescription();
+	auto attributeDescriptions = Vertex::GetAttributeDescriptions();
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType =
 		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription
+	vertexInputInfo.vertexAttributeDescriptionCount =
+		static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexAttributeDescriptions =
+		attributeDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 	inputAssembly.sType =
@@ -747,6 +754,29 @@ void Video::DestroySyncObjects()
 	renderFinishedSemaphores.clear();
 	inFlightFences.clear();
 	imagesInFlight.clear();
+}
+
+void Video::CreateVertexBuffer()
+{
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) !=
+		VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create vertex buffer");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+
+
+
+
+
 }
 
 void Video::RecreateSwapchain()
@@ -1161,4 +1191,33 @@ void Video::MainLoop()
 void Video::Start()
 {
 	MainLoop();
+}
+
+VkVertexInputBindingDescription Video::Vertex::GetBindingDescription()
+{
+	VkVertexInputBindingDescription bindingDescription{};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(Vertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	return bindingDescription;
+}
+
+std::array<VkVertexInputAttributeDescription, 2>
+	Video::Vertex::GetAttributeDescriptions()
+{
+	std::array<VkVertexInputAttributeDescription, 2>
+		attributeDescriptions{};
+
+	atributeDescriptions[0].binding = 0;
+	atributeDescriptions[0].location = 0;
+	atributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+	atributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+	atributeDescriptions[1].binding = 0;
+	atributeDescriptions[1].location = 1;
+	atributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	atributeDescriptions[1].offset = offsetof(Vertex, color);
+
+	return atributeDescriptions;
 }

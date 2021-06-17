@@ -6,14 +6,34 @@
 #include <optional>
 #include <set>
 #include <algorithm>
+#include <array>
 
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 class Video
 {
+public:
+	struct Vertex
+	{
+		glm::vec2 pos;
+		glm::vec3 color;
+
+		static VkVertexInputBindingDescription GetBindingDescription();
+		static std::array<VkVertexInputAttributeDescription, 2>
+			GetAttributeDescriptions();
+	};
+
+private:
 	const size_t MAX_FRAMES_IN_FLIGHT = 2;
+
+	const std:vector<Vertex> verices = {
+		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+	};
 
 	struct QueueFamilyIndices
 	{
@@ -51,6 +71,7 @@ class Video
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> imagesInFlight;
 	size_t currentFrame;
+	VkBuffer vertexBuffer;
 
 	bool framebufferResized;
 
@@ -82,6 +103,7 @@ class Video
 	void DestroySyncObjects();
 	void RecreateSwapchain();
 	void CleanupSwapchain();
+	void CreateVertexBuffer();
 
 	static void FramebufferResizeCallback(
 		GLFWwindow* window,
@@ -102,9 +124,11 @@ class Video
 		const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D ChooseSwapExtent(
 		const VkSurfaceCapabilitiesKHR& capabilities);
+	uint32_t FindMemoryType(uint32_t typeFilter
 
 	void MainLoop();
 	void DrawFrame();
+
 public:
 	Video(int width, int height, bool validate = false);
 	~Video();
