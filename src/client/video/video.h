@@ -221,7 +221,16 @@ private:
 		VkImage image,
 		uint32_t width,
 		uint32_t height);
-	VkImageView CreateImageView(VkImage image, VkFormat format);
+	VkImageView CreateImageView(
+		VkImage image,
+		VkFormat format,
+		VkImageAspectFlags aspectFlags);
+	VkFormat FindSupportedFormat(
+		const std::vector<VkFormat>& candidates,
+		VkImageTiling tiling,
+		VkFormatFeatureFlags features);
+	VkFormat FindDepthFormat();
+	bool HasStencilComponent(VkFormat format);
 
 	void MainLoop();
 	void DrawFrame();
