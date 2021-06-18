@@ -65,11 +65,13 @@ private:
 	VkPipeline graphicsPipeline;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 	VkCommandPool commandPool;
+	VkCommandPool transferCommandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> imagesInFlight;
+	VkFence bufferCopyFence;
 	size_t currentFrame;
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
@@ -98,7 +100,8 @@ private:
 	void CreateRenderPass();
 	void CreateFramebuffers();
 	void DestroyFramebuffers();
-	void CreateCommandPool();
+	void CreateCommandPools();
+	void DestroyCommandPools();
 	void CreateCommandBuffers();
 	void CreateSyncObjects();
 	void DestroySyncObjects();
@@ -129,6 +132,16 @@ private:
 	uint32_t FindMemoryType(
 		uint32_t typeFilter,
 		VkMemoryPropertyFlags properties);
+	void CreateBuffer(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory);
+	void CopyBuffer(
+		VkBuffer srcBuffer,
+		VkBuffer dstBuffer,
+		VkDeviceSize size);
 
 	void MainLoop();
 	void DrawFrame();

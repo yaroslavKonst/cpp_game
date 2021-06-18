@@ -61,15 +61,15 @@ void Video::InitVulkan()
 	CreateSurface();
 	PickPhysicalDevice();
 	CreateLogicalDevice();
+	CreateSyncObjects();
 	CreateSwapchain();
 	CreateImageViews();
 	CreateRenderPass();
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
-	CreateCommandPool();
+	CreateCommandPools();
 	CreateVertexBuffer();
 	CreateCommandBuffers();
-	CreateSyncObjects();
 }
 
 void Video::CreateInstance()
@@ -111,8 +111,6 @@ void Video::CreateInstance()
 
 void Video::CloseVulkan()
 {
-	DestroySyncObjects();
-	vkDestroyCommandPool(device, commandPool, nullptr);
 	DestroyFramebuffers();
 	vkDestroyPipeline(device, graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -120,6 +118,8 @@ void Video::CloseVulkan()
 	DestroyImageViews();
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
 	DestroyVertexBuffer();
+	DestroyCommandPools();
+	DestroySyncObjects();
 	vkDestroyDevice(device, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(instance, nullptr);
@@ -296,6 +296,9 @@ void Video::CreateSwapchain()
 
 	swapchainImageFormat = surfaceFormat.format;
 	swapchainExtent = extent;
+
+	imagesInFlight.clear();
+	imagesInFlight.resize(swapchainImages.size(), VK_NULL_HANDLE);
 }
 
 void Video::CreateImageViews()
@@ -596,7 +599,7 @@ void Video::DestroyFramebuffers()
 	}
 }
 
-void Video::CreateCommandPool()
+void Video::CreateCommandPools()
 {
 	QueueFamilyIndices queueFamilyIndices =
 		FindQueueFamilies(physicalDevice);
@@ -615,6 +618,26 @@ void Video::CreateCommandPool()
 	{
 		throw std::runtime_error("failed to create command pool");
 	}
+
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.queueFamilyIndex =
+		queueFamilyIndices.graphicsFamily.value();
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+
+	if (vkCreateCommandPool(
+		device,
+		&poolInfo,
+		nullptr,
+		&transferCommandPool) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create command pool");
+	}
+}
+
+void Video::DestroyCommandPools()
+{
+	vkDestroyCommandPool(device, transferCommandPool, nullptr);
+	vkDestroyCommandPool(device, commandPool, nullptr);
 }
 
 void Video::CreateCommandBuffers()
@@ -702,7 +725,6 @@ void Video::CreateSyncObjects()
 	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-	imagesInFlight.resize(swapchainImages.size(), VK_NULL_HANDLE);
 
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -745,6 +767,17 @@ void Video::CreateSyncObjects()
 				"failed to create fence");
 		}
 	}
+
+	auto rVal = vkCreateFence(
+		device,
+		&fenceInfo,
+		nullptr,
+		&bufferCopyFence);
+
+	if (rVal != VK_SUCCESS) {
+		throw std::runtime_error(
+			"failed to create fence");
+	}
 }
 
 void Video::DestroySyncObjects()
@@ -764,6 +797,11 @@ void Video::DestroySyncObjects()
 			nullptr);
 	}
 
+	vkDestroyFence(
+		device,
+		bufferCopyFence,
+		nullptr);
+
 	imageAvailableSemaphores.clear();
 	renderFinishedSemaphores.clear();
 	inFlightFences.clear();
@@ -772,51 +810,137 @@ void Video::DestroySyncObjects()
 
 void Video::CreateVertexBuffer()
 {
-	VkBufferCreateInfo bufferInfo{};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-	if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) !=
-		VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to create vertex buffer");
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = FindMemoryType(
-		memRequirements.memoryTypeBits,
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	if (vkAllocateMemory(
-		device,
-		&allocInfo,
-		nullptr,
-		&vertexBufferMemory) != VK_SUCCESS)
-	{
-		throw std::runtime_error(
-			"failed to allocate vertex buffer memory");
-	}
-
-	vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory);
 
 	void* data;
-	vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-	memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
-	vkUnmapMemory(device, vertexBufferMemory);
+	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		vertexBuffer,
+		vertexBufferMemory);
+
+	CopyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
 void Video::DestroyVertexBuffer()
 {
 	vkDestroyBuffer(device, vertexBuffer, nullptr);
 	vkFreeMemory(device, vertexBufferMemory, nullptr);
+}
+
+void Video::CreateBuffer(
+	VkDeviceSize size,
+	VkBufferUsageFlags usage,
+	VkMemoryPropertyFlags properties,
+	VkBuffer& buffer,
+	VkDeviceMemory& bufferMemory)
+{
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) !=
+		VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create buffer");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = FindMemoryType(
+		memRequirements.memoryTypeBits,
+		properties);
+
+	if (vkAllocateMemory(
+		device,
+		&allocInfo,
+		nullptr,
+		&bufferMemory) != VK_SUCCESS)
+	{
+		throw std::runtime_error(
+			"failed to allocate buffer memory");
+	}
+
+	vkBindBufferMemory(device, buffer, bufferMemory, 0);
+}
+
+void Video::CopyBuffer(
+	VkBuffer srcBuffer,
+	VkBuffer dstBuffer,
+	VkDeviceSize size)
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = transferCommandPool;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion{};
+	copyRegion.srcOffset = 0;
+	copyRegion.dstOffset = 0;
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkResetFences(
+		device,
+		1,
+		&bufferCopyFence);
+
+	vkQueueSubmit(
+		graphicsQueue,
+		1,
+		&submitInfo,
+		bufferCopyFence);
+
+	vkWaitForFences(
+		device,
+		1,
+		&bufferCopyFence,
+		VK_TRUE,
+		UINT64_MAX);
+
+	vkFreeCommandBuffers(device, transferCommandPool, 1, &commandBuffer);
 }
 
 void Video::RecreateSwapchain()
@@ -841,13 +965,10 @@ void Video::RecreateSwapchain()
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandBuffers();
-	CreateSyncObjects();
-
 }
 
 void Video::CleanupSwapchain()
 {
-	DestroySyncObjects();
 	vkFreeCommandBuffers(
 		device,
 		commandPool,
