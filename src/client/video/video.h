@@ -11,7 +11,12 @@
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 
 class Video
 {
@@ -27,14 +32,6 @@ public:
 	};
 
 private:
-	const size_t MAX_FRAMES_IN_FLIGHT = 2;
-
-	const std::vector<Vertex> vertices = {
-		{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-	};
-
 	struct QueueFamilyIndices
 	{
 		std::optional<uint32_t> graphicsFamily;
@@ -46,6 +43,26 @@ private:
 		VkSurfaceCapabilitiesKHR capabilities;
 		std::vector<VkSurfaceFormatKHR> formats;
 		std::vector<VkPresentModeKHR> presentModes;
+	};
+
+	struct UniformBufferObject
+	{
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
+	};
+
+	const size_t MAX_FRAMES_IN_FLIGHT = 2;
+
+	const std::vector<Vertex> vertices = {
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
+	};
+
+	const std::vector<uint16_t> indices = {
+		0, 1, 2, 2, 3, 0
 	};
 
 	VkInstance instance;
@@ -61,6 +78,7 @@ private:
 	VkExtent2D swapchainExtent;
 	std::vector<VkImageView> swapchainImageViews;
 	VkRenderPass renderPass;
+	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
@@ -75,6 +93,12 @@ private:
 	size_t currentFrame;
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+	std::vector<VkBuffer> uniformBuffers;
+	std::vector<VkDeviceMemory> uniformBuffersMemory;
+	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> descriptorSets;
 
 	bool framebufferResized;
 
@@ -88,6 +112,8 @@ private:
 
 	void InitVulkan();
 	void CloseVulkan();
+	void PrepareSwapchain();
+	void CleanupSwapchain();
 
 	void CreateInstance();
 	void CreateSurface();
@@ -97,6 +123,7 @@ private:
 	void CreateImageViews();
 	void DestroyImageViews();
 	void CreateGraphicsPipeline();
+	void DestroyGraphicsPipeline();
 	void CreateRenderPass();
 	void CreateFramebuffers();
 	void DestroyFramebuffers();
@@ -106,9 +133,15 @@ private:
 	void CreateSyncObjects();
 	void DestroySyncObjects();
 	void RecreateSwapchain();
-	void CleanupSwapchain();
 	void CreateVertexBuffer();
 	void DestroyVertexBuffer();
+	void CreateIndexBuffer();
+	void DestroyIndexBuffer();
+	void CreateDescriptorSetLayout();
+	void CreateUniformBuffers();
+	void DestroyUniformBuffers();
+	void CreateDescriptorPool();
+	void CreateDescriptorSets();
 
 	static void FramebufferResizeCallback(
 		GLFWwindow* window,
@@ -116,6 +149,12 @@ private:
 		int height);
 
 	VkShaderModule CreateShaderModule(uint32_t size, const uint32_t* code);
+	void CreateBuffer(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory);
 
 	bool IsDeviceSuitable(VkPhysicalDevice device);
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
@@ -132,16 +171,11 @@ private:
 	uint32_t FindMemoryType(
 		uint32_t typeFilter,
 		VkMemoryPropertyFlags properties);
-	void CreateBuffer(
-		VkDeviceSize size,
-		VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags properties,
-		VkBuffer& buffer,
-		VkDeviceMemory& bufferMemory);
 	void CopyBuffer(
 		VkBuffer srcBuffer,
 		VkBuffer dstBuffer,
 		VkDeviceSize size);
+	void UpdateUniformBuffer(uint32_t currentImage);
 
 	void MainLoop();
 	void DrawFrame();
