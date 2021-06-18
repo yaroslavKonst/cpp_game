@@ -29,8 +29,8 @@ public:
 private:
 	const size_t MAX_FRAMES_IN_FLIGHT = 2;
 
-	const std:vector<Vertex> verices = {
-		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+	const std::vector<Vertex> vertices = {
+		{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
 		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
 	};
@@ -72,6 +72,7 @@ private:
 	std::vector<VkFence> imagesInFlight;
 	size_t currentFrame;
 	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
 
 	bool framebufferResized;
 
@@ -104,6 +105,7 @@ private:
 	void RecreateSwapchain();
 	void CleanupSwapchain();
 	void CreateVertexBuffer();
+	void DestroyVertexBuffer();
 
 	static void FramebufferResizeCallback(
 		GLFWwindow* window,
@@ -124,7 +126,9 @@ private:
 		const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D ChooseSwapExtent(
 		const VkSurfaceCapabilitiesKHR& capabilities);
-	uint32_t FindMemoryType(uint32_t typeFilter
+	uint32_t FindMemoryType(
+		uint32_t typeFilter,
+		VkMemoryPropertyFlags properties);
 
 	void MainLoop();
 	void DrawFrame();
