@@ -16,8 +16,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <chrono>
-
 class Video
 {
 public:
@@ -25,9 +23,10 @@ public:
 	{
 		glm::vec2 pos;
 		glm::vec3 color;
+		glm::vec2 texCoord;
 
 		static VkVertexInputBindingDescription GetBindingDescription();
-		static std::array<VkVertexInputAttributeDescription, 2>
+		static std::array<VkVertexInputAttributeDescription, 3>
 			GetAttributeDescriptions();
 	};
 
@@ -55,10 +54,10 @@ private:
 	const size_t MAX_FRAMES_IN_FLIGHT = 2;
 
 	const std::vector<Vertex> vertices = {
-		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 	};
 
 	const std::vector<uint16_t> indices = {
@@ -99,6 +98,10 @@ private:
 	std::vector<VkDeviceMemory> uniformBuffersMemory;
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
+	VkImage textureImage;
+	VkDeviceMemory textureImageMemory;
+	VkImageView textureImageView;
+	VkSampler textureSampler;
 
 	bool framebufferResized;
 
@@ -143,6 +146,17 @@ private:
 	void CreateDescriptorPool();
 	void CreateDescriptorSets();
 
+	void CreateTextureImage();
+	void DestroyTextureImage();
+	void CreateTextureImageView();
+	void DestroyTextureImageView();
+
+	void CreateTextureSampler();
+	void DestroyTextureSampler();
+
+	VkCommandBuffer BeginSingleTimeCommands();
+	void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+
 	static void FramebufferResizeCallback(
 		GLFWwindow* window,
 		int width,
@@ -155,6 +169,15 @@ private:
 		VkMemoryPropertyFlags properties,
 		VkBuffer& buffer,
 		VkDeviceMemory& bufferMemory);
+	void CreateImage(
+		uint32_t width,
+		uint32_t height,
+		VkFormat format,
+		VkImageTiling tiling,
+		VkImageUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkImage& image,
+		VkDeviceMemory& imageMemory);
 
 	bool IsDeviceSuitable(VkPhysicalDevice device);
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
@@ -176,6 +199,17 @@ private:
 		VkBuffer dstBuffer,
 		VkDeviceSize size);
 	void UpdateUniformBuffer(uint32_t currentImage);
+	void TransitionImageLayout(
+		VkImage image,
+		VkFormat format,
+		VkImageLayout oldLayout,
+		VkImageLayout newLayout);
+	void CopyBufferToImage(
+		VkBuffer buffer,
+		VkImage image,
+		uint32_t width,
+		uint32_t height);
+	VkImageView CreateImageView(VkImage image, VkFormat format);
 
 	void MainLoop();
 	void DrawFrame();
