@@ -96,6 +96,7 @@ void Video::CloseVulkan()
 
 void Video::PrepareSwapchain()
 {
+	CreateDepthResources();
 	CreateSwapchain();
 	CreateUniformBuffers();
 	CreateDescriptorPool();
@@ -121,6 +122,7 @@ void Video::CleanupSwapchain()
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	DestroyUniformBuffers();
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
+	DestroyDepthResources();
 }
 
 void Video::CreateInstance()
@@ -1235,6 +1237,16 @@ VkImageView Video::CreateImageView(VkImage image, VkFormat format)
 	return imageView;
 }
 
+void Video::CreateDepthResources()
+{
+
+}
+
+void Video::DestroyDepthResources()
+{
+
+}
+
 VkCommandBuffer Video::BeginSingleTimeCommands()
 {
 	VkCommandBufferAllocateInfo allocInfo{};
@@ -1958,7 +1970,7 @@ std::array<VkVertexInputAttributeDescription, 3>
 
 	attributeDescriptions[0].binding = 0;
 	attributeDescriptions[0].location = 0;
-	attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
 	attributeDescriptions[1].binding = 0;
