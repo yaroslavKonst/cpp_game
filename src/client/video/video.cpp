@@ -14,12 +14,14 @@ Video::Video(int width, int height, bool validate):
 {
 	enableValidationLayers = validate;
 	if (validate) {
+		//validationLayers.push_back(
+		//	"VK_LAYER_LUNARG_core_validation");
+		//validationLayers.push_back(
+		//	"VK_LAYER_LUNARG_parameter_validation");
+		//validationLayers.push_back(
+		//	"VK_LAYER_LUNARG_standard_validation");
 		validationLayers.push_back(
-			"VK_LAYER_LUNARG_core_validation");
-		validationLayers.push_back(
-			"VK_LAYER_LUNARG_parameter_validation");
-		validationLayers.push_back(
-			"VK_LAYER_LUNARG_standard_validation");
+			"VK_LAYER_KHRONOS_validation");
 	}
 
 	deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
