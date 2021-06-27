@@ -1,5 +1,5 @@
-#LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
-LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr
+LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
+#LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr
 
 .PHONY: tests %_test
 
@@ -15,3 +15,4 @@ video_test: video_test.cpp
 	cd ../src/client/video && make
 	g++ -Wall -O3 -std=c++17 -fopenmp -o ../build/$@ $< ../build/video.o $(LD_VULKAN_FLAGS) -g
 	../build/$@
+#	valgrind --track-origins=yes --leak-check=full ../build/$@
