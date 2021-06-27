@@ -125,6 +125,7 @@ void Video::CloseVulkan()
 void Video::CreateSwapchain()
 {
 	CreateSwapchainInstance();
+	CreateColorResources();
 	CreateDepthResources();
 	CreateImageViews();
 	CreateSwapchainSyncObjects();
@@ -148,6 +149,7 @@ void Video::DestroySwapchain()
 	DestroySwapchainSyncObjects();
 	DestroyImageViews();
 	DestroyDepthResources();
+	DestroyColorResources();
 	DestroySwapchainInstance();
 }
 
@@ -245,6 +247,7 @@ void Video::PickPhysicalDevice()
 	for (const auto& device : devices) {
 		if (IsDeviceSuitable(device)) {
 			physicalDevice = device;
+			msaaSamples = GetMaxUsableSampleCount();
 			break;
 		}
 	}
@@ -280,6 +283,7 @@ void Video::CreateLogicalDevice()
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.sampleRateShading = VK_TRUE;
 
 	VkDeviceCreateInfo deviceInfo{};
 	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -835,6 +839,37 @@ void Video::DestroySwapchainInstance()
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
 }
 
+void Video::CreateColorResources()
+{
+	VkFormat colorFormat = swapchainImageFormat;
+
+	CreateImage(
+		swapchainExtent.width,
+		swapchainExtent.height,
+		1,
+		msaaSamples,
+		colorFormat,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		colorImage,
+		colorImageMemory);
+
+	colorImageView = CreateImageView(
+		colorImage,
+		colorFormat,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		1);
+}
+
+void Video::DestroyColorResources()
+{
+	vkDestroyImageView(device, colorImageView, nullptr);
+	vkDestroyImage(device, colorImage, nullptr);
+	vkFreeMemory(device, colorImageMemory, nullptr);
+}
+
 void Video::CreateDepthResources()
 {
 	VkFormat depthFormat = FindDepthFormat();
@@ -843,6 +878,7 @@ void Video::CreateDepthResources()
 		swapchainExtent.width,
 		swapchainExtent.height,
 		1,
+		msaaSamples,
 		depthFormat,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -1073,7 +1109,7 @@ void Video::CreateRenderPass()
 {
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = swapchainImageFormat;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.samples = msaaSamples;
 
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1082,11 +1118,11 @@ void Video::CreateRenderPass()
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = FindDepthFormat();
-	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.samples = msaaSamples;
 
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1098,6 +1134,17 @@ void Video::CreateRenderPass()
 	depthAttachment.finalLayout =
 		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+	VkAttachmentDescription colorAttachmentResolve{};
+	colorAttachmentResolve.format = swapchainImageFormat;
+	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachmentResolve.stencilStoreOp =
+		VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
 	VkAttachmentReference colorAttachmentRef{};
 	colorAttachmentRef.attachment = 0;
 	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1107,15 +1154,22 @@ void Video::CreateRenderPass()
 	depthAttachmentRef.layout =
 		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+	VkAttachmentReference colorAttachmentResolveRef{};
+	colorAttachmentResolveRef.attachment = 2;
+	colorAttachmentResolveRef.layout =
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
 	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+	subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
 	std::vector<VkAttachmentDescription> attachments = {
 		colorAttachment,
-		depthAttachment
+		depthAttachment,
+		colorAttachmentResolve
 	};
 
 	VkRenderPassCreateInfo renderPassInfo{};
@@ -1239,9 +1293,9 @@ void Video::CreateGraphicsPipeline()
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType =
 		VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	multisampling.minSampleShading = 1.0f;
+	multisampling.sampleShadingEnable = VK_TRUE;
+	multisampling.rasterizationSamples = msaaSamples;
+	multisampling.minSampleShading = 0.2f;
 	multisampling.pSampleMask = nullptr;
 	multisampling.alphaToCoverageEnable = VK_FALSE;
 	multisampling.alphaToOneEnable = VK_FALSE;
@@ -1351,8 +1405,9 @@ void Video::CreateFramebuffers()
 
 	for (size_t i = 0; i < swapchainImageViews.size(); ++i) {
 		std::vector<VkImageView> attachments = {
-			swapchainImageViews[i],
-			depthImageView
+			colorImageView,
+			depthImageView,
+			swapchainImageViews[i]
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -1870,6 +1925,7 @@ void Video::CreateImage(
 	uint32_t width,
 	uint32_t height,
 	uint32_t mipLevels,
+	VkSampleCountFlagBits numSamples,
 	VkFormat format,
 	VkImageTiling tiling,
 	VkImageUsageFlags usage,
@@ -1890,7 +1946,7 @@ void Video::CreateImage(
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	imageInfo.usage = usage;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageInfo.samples = numSamples;
 	imageInfo.flags = 0;
 
 	VkResult res = vkCreateImage(device, &imageInfo, nullptr, &image);
@@ -2740,6 +2796,35 @@ void Video::GenerateMipmaps(
 		&barrier);
 
 	EndSingleTimeCommands(commandBuffer);
+}
+
+VkSampleCountFlagBits Video::GetMaxUsableSampleCount()
+{
+	VkPhysicalDeviceProperties physicalDeviceProperties;
+	vkGetPhysicalDeviceProperties(
+		physicalDevice,
+		&physicalDeviceProperties);
+
+	VkSampleCountFlags counts =
+		physicalDeviceProperties.limits.framebufferColorSampleCounts &
+		physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+
+	std::vector<VkSampleCountFlagBits> bits = {
+		VK_SAMPLE_COUNT_64_BIT,
+		VK_SAMPLE_COUNT_32_BIT,
+		VK_SAMPLE_COUNT_16_BIT,
+		VK_SAMPLE_COUNT_8_BIT,
+		VK_SAMPLE_COUNT_4_BIT,
+		VK_SAMPLE_COUNT_2_BIT
+	};
+
+	for (auto bit : bits) {
+		if (counts & bit) {
+			return bit;
+		}
+	}
+
+	return VK_SAMPLE_COUNT_1_BIT;
 }
 
 // Public methods

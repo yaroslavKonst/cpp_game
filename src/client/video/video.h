@@ -114,6 +114,8 @@ private:
 	GPUMemoryManager* textureImageMemoryManager;
 	GPUMemoryManager* uniformBufferMemoryManager;
 
+	VkSampleCountFlagBits msaaSamples;
+
 	void InitVulkan();
 	void CloseVulkan();
 
@@ -164,6 +166,12 @@ private:
 	VkImageView depthImageView;
 	void CreateDepthResources();
 	void DestroyDepthResources();
+
+	VkImage colorImage;
+	VkDeviceMemory colorImageMemory;
+	VkImageView colorImageView;
+	void CreateColorResources();
+	void DestroyColorResources();
 
 	std::vector<VkImageView> swapchainImageViews;
 	void CreateImageViews();
@@ -257,6 +265,7 @@ private:
 		uint32_t width,
 		uint32_t height,
 		uint32_t mipLevels,
+		VkSampleCountFlagBits numSamples,
 		VkFormat format,
 		VkImageTiling tiling,
 		VkImageUsageFlags usage,
@@ -328,6 +337,7 @@ private:
 		uint32_t texWidth,
 		uint32_t texHeight,
 		uint32_t mipLevels);
+	VkSampleCountFlagBits GetMaxUsableSampleCount();
 
 	// Rendering
 	void DrawFrame();
