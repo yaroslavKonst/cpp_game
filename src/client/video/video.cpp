@@ -2534,6 +2534,22 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 	cameraMutex.unlock();
 }
 
+namespace std
+{
+
+	template<>
+	struct hash<Model::Vertex>
+	{
+		size_t operator()(const Model::Vertex& vertex) const
+		{
+			return
+				((hash<glm::vec3>()(vertex.pos) ^
+				(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+				(hash<glm::vec2>()(vertex.texCoord) << 1);
+		}
+	};
+}
+
 void Video::LoadModelFromObj(Model* model, const std::string& fileName)
 {
 	tinyobj::attrib_t attrib;
@@ -2556,6 +2572,9 @@ void Video::LoadModelFromObj(Model* model, const std::string& fileName)
 	model->vertices.clear();
 	model->indices.clear();
 
+	std::unordered_map<Model::Vertex, Model::VertexIndexType>
+		uniqueVertices;
+
 	for (const auto& shape : shapes) {
 		for (const auto& index : shape.mesh.indices) {
 			Model::Vertex vertex{};
@@ -2574,8 +2593,14 @@ void Video::LoadModelFromObj(Model* model, const std::string& fileName)
 
 			vertex.color = {1.0f, 1.0f, 1.0f};
 
-			model->vertices.push_back(vertex);
-			model->indices.push_back(model->indices.size());
+			if (uniqueVertices.count(vertex) == 0) {
+				uniqueVertices[vertex] =
+					static_cast<Model::VertexIndexType>(
+						model->vertices.size());
+				model->vertices.push_back(vertex);
+			}
+
+			model->indices.push_back(uniqueVertices[vertex]);
 		}
 	}
 }

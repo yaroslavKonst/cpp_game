@@ -15,8 +15,10 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/hash.hpp>
 
 
 class Model;
@@ -366,6 +368,14 @@ public:
 		static VkVertexInputBindingDescription GetBindingDescription();
 		static std::vector<VkVertexInputAttributeDescription>
 			GetAttributeDescriptions();
+
+		bool operator==(const Vertex& vertex) const
+		{
+			return
+				pos == vertex.pos &&
+				color == vertex.color &&
+				texCoord == vertex.texCoord;
+		}
 	};
 
 private:
