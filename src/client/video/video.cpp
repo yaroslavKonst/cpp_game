@@ -8,7 +8,7 @@
 #include "shaders/vert.spv"
 #include "shaders/frag.spv"
 
-// Turn on validation layers
+// Validation layers
 #ifndef VALIDATE
 #define VALIDATE true
 #endif
@@ -1230,6 +1230,11 @@ void Video::CreateGraphicsPipeline()
 	multisampling.alphaToOneEnable = VK_FALSE;
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+	colorBlendAttachment.colorWriteMask =
+		VK_COLOR_COMPONENT_R_BIT |
+		VK_COLOR_COMPONENT_G_BIT |
+		VK_COLOR_COMPONENT_B_BIT |
+		VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachment.blendEnable = VK_FALSE;
 	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
 	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -2375,6 +2380,7 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	beginInfo.pInheritanceInfo = nullptr;
 
 	res = vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
