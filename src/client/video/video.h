@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 #include <algorithm>
+#include <mutex>
 
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
@@ -54,6 +55,14 @@ public:
 		void Free(MemoryAllocationProperties properties);
 	};
 
+	class Camera
+	{
+	public:
+		glm::vec3 position;
+		glm::vec3 target;
+		glm::vec3 up;
+	};
+
 private:
 	// Types
 	struct QueueFamilyIndices
@@ -82,6 +91,11 @@ private:
 
 	bool validate;
 	std::vector<const char*> validationLayers;
+
+	bool work;
+
+	Camera camera;
+	std::mutex cameraMutex;
 
 	std::set<Model*> models;
 
@@ -309,15 +323,26 @@ public:
 	Video(const std::string& name, int width, int height);
 	~Video();
 
-	Model* LoadModel(std::string fileName);
+	Model* CreateModel(std::string* fileName);
 	void DestroyModel(Model* model);
+
+	void LoadModel(Model* model);
+	void UnloadModel(Model* model);
 
 	void Start();
 	void Stop();
+
+	void SetCamera(
+		const glm::vec3* position,
+		const glm::vec3* target,
+		const glm::vec3* up);
 };
 
 class Model
 {
+	friend class Video;
+
+public:
 	struct Vertex
 	{
 		glm::vec3 pos;
@@ -329,16 +354,13 @@ class Model
 			GetAttributeDescriptions();
 	};
 
-public:
+private:
 	struct UniformBufferObject
 	{
 		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 proj;
 	};
-
-private:
-	friend class Video;
 
 	std::vector<Vertex> vertices;
 	std::vector<uint16_t> indices;
@@ -351,10 +373,8 @@ private:
 	VkBuffer indexBuffer;
 	Video::GPUMemoryManager::MemoryAllocationProperties indexBufferMemory;
 
-public:
-	UniformBufferObject ubo;
+	bool loaded;
 
-private:
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
 
@@ -371,6 +391,16 @@ private:
 
 	~Model()
 	{ }
+
+public:
+	bool active;
+	glm::mat4 modelPosition;
+
+	void UpdateBuffers(
+		const std::vector<Vertex>& vertices,
+		const std::vector<uint16_t>& indices);
+
+	void SetTextureName(const std::string& name);
 };
 
 #endif

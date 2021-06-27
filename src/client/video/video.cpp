@@ -1564,7 +1564,7 @@ void Video::DrawFrame()
 
 void Video::MainLoop()
 {
-	while (!glfwWindowShouldClose(window)) {
+	while (work && !glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		DrawFrame();
 	}
@@ -2414,6 +2414,10 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 		graphicsPipeline);
 
 	for (Model* model : models) {
+		if (!model->active) {
+			continue;
+		}
+
 		VkBuffer vertexBuffers[] = {model->vertexBuffer};
 		VkDeviceSize offsets[] = {0};
 
@@ -2462,16 +2466,26 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 
 void Video::UpdateUniformBuffers(uint32_t imageIndex)
 {
-	for (Model* model : models) {
-		Model::UniformBufferObject ubo = model->ubo;
+	cameraMutex.lock();
 
-		ubo.proj = glm::perspective(
-			glm::radians(45.0f),
-			float(swapchainExtent.width) /
-			float(swapchainExtent.height),
-			0.1f,
-			10.0f);
-		ubo.proj[1][1] *= -1;
+	Model::UniformBufferObject ubo;
+
+	ubo.proj = glm::perspective(
+		glm::radians(45.0f),
+		float(swapchainExtent.width) /
+		float(swapchainExtent.height),
+		0.1f,
+		10.0f);
+	ubo.proj[1][1] *= -1;
+
+	ubo.view = glm::lookAt(
+		camera.position,
+		camera.target,
+		camera.up);
+
+	for (Model* model : models) {
+		
+		ubo.model = model->modelPosition;
 
 		void* data;
 		VkResult res = vkMapMemory(
@@ -2491,35 +2505,28 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 			device, 
 			model->uniformBufferMemory[imageIndex].memory);
 	}
+
+	cameraMutex.unlock();
 }
 
 // Public methods
-Model* Video::LoadModel(std::string fileName)
+Model* Video::CreateModel(std::string* fileName)
 {
 	Model* model = new Model();
 
-	model->vertices = {
-		{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-		{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-		{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-		{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+	model->loaded = false;
+	model->active = false;
 
-		{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-		{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-		{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-	};
+	return model;
+}
 
-	model->indices = {
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4
-	};
+void Video::DestroyModel(Model* model)
+{
+	delete model;
+}
 
-	model->textureName = "../src/client/video/textures/test_texture.png";
-
-	model->ubo.model = glm::mat4(1.0f);
-	model->ubo.view = glm::mat4(1.0f);
-
+void Video::LoadModel(Model* model)
+{
 	if (allowVertexBufferCreation) {
 		CreateVertexBuffer(model);
 	}
@@ -2544,11 +2551,12 @@ Model* Video::LoadModel(std::string fileName)
 		CreateDescriptorSets(model);
 	}
 
+	model->loaded = true;
+
 	models.insert(model);
-	return model;
 }
 
-void Video::DestroyModel(Model* model)
+void Video::UnloadModel(Model* model)
 {
 	if (allowDescriptorPoolCreation) {
 		DestroyDescriptorPool(model->descriptorPool);
@@ -2570,13 +2578,42 @@ void Video::DestroyModel(Model* model)
 		DestroyVertexBuffer(model);
 	}
 
+	model->loaded = false;
+
 	models.erase(model);
-	delete model;
 }
 
 void Video::Start()
 {
+	work = true;
 	MainLoop();
+}
+
+void Video::Stop()
+{
+	work = false;
+}
+
+void Video::SetCamera(
+	const glm::vec3* position,
+	const glm::vec3* target,
+	const glm::vec3* up)
+{
+	cameraMutex.lock();
+
+	if (position) {
+		camera.position = *position;
+	}
+
+	if (target) {
+		camera.target = *target;
+	}
+
+	if (up) {
+		camera.up = *up;
+	}
+
+	cameraMutex.unlock();
 }
 
 // GPUMemoryManager
@@ -2702,6 +2739,23 @@ void Video::GPUMemoryManager::Free(
 }
 
 // Model
+void Model::UpdateBuffers(
+	const std::vector<Vertex>& vertices,
+	const std::vector<uint16_t>& indices)
+{
+	if (loaded) {
+		throw std::runtime_error("model is loaded");
+	}
+
+	this->vertices = vertices;
+	this->indices = indices;
+}
+
+void Model::SetTextureName(const std::string& name)
+{
+	textureName = name;
+}
+
 VkVertexInputBindingDescription Model::Vertex::GetBindingDescription()
 {
 	VkVertexInputBindingDescription bindingDescription{};
