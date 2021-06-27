@@ -5,6 +5,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../../lib/stb/stb_image.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "../../lib/tinyobjloader/tiny_obj_loader.h"
+
 #include "shaders/vert.spv"
 #include "shaders/frag.spv"
 
@@ -80,7 +83,6 @@ void Video::InitVulkan()
 	CreateCommandPools();
 	CreateSyncObjects();
 	CreateDescriptorSetLayout();
-	CreateTextureSampler();
 	CreateVertexBuffers();
 	CreateIndexBuffers();
 	CreateTextureImages();
@@ -95,7 +97,6 @@ void Video::CloseVulkan()
 	DestroyTextureImages();
 	DestroyIndexBuffers();
 	DestroyVertexBuffers();
-	DestroyTextureSampler();
 	DestroyDescriptorSetLayout();
 	DestroySyncObjects();
 	DestroyCommandPools();
@@ -427,7 +428,7 @@ void Video::DestroyDescriptorSetLayout()
 	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 }
 
-void Video::CreateTextureSampler()
+void Video::CreateTextureSampler(Model* model)
 {
 	VkSamplerCreateInfo samplerInfo{};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -449,22 +450,22 @@ void Video::CreateTextureSampler()
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerInfo.mipLodBias = 0.0f;
 	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 0.0f;
+	samplerInfo.maxLod = static_cast<float>(model->textureMipLevels);
 
 	VkResult res = vkCreateSampler(
 		device,
 		&samplerInfo,
 		nullptr,
-		&textureSampler);
+		&model->textureSampler);
 
 	if (res != VK_SUCCESS) {
 		throw std::runtime_error("failed to create texture sampler");
 	}
 }
 
-void Video::DestroyTextureSampler()
+void Video::DestroyTextureSampler(Model* model)
 {
-	vkDestroySampler(device, textureSampler, nullptr);
+	vkDestroySampler(device, model->textureSampler, nullptr);
 }
 
 void Video::CreateVertexBuffers()
@@ -562,7 +563,7 @@ void Video::DestroyIndexBuffers()
 void Video::CreateIndexBuffer(Model* model)
 {
 	VkDeviceSize bufferSize =
-		sizeof(uint16_t) * model->indices.size();
+		sizeof(Model::VertexIndexType) * model->indices.size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -650,6 +651,9 @@ void Video::CreateTextureImage(Model* model)
 		throw std::runtime_error("failed to load texture image");
 	}
 
+	model->textureMipLevels = static_cast<uint32_t>(
+		std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 
 	VkBuffer stagingBuffer;
@@ -684,9 +688,12 @@ void Video::CreateTextureImage(Model* model)
 	CreateImage(
 		texWidth,
 		texHeight,
+		model->textureMipLevels,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+		VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		MANAGER_TEXTURE,
 		model->textureImage,
@@ -696,7 +703,8 @@ void Video::CreateTextureImage(Model* model)
 		model->textureImage,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_LAYOUT_UNDEFINED,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		model->textureMipLevels);
 
 	CopyBufferToImage(
 		stagingBuffer,
@@ -704,11 +712,12 @@ void Video::CreateTextureImage(Model* model)
 		static_cast<uint32_t>(texWidth),
 		static_cast<uint32_t>(texHeight));
 
-	TransitionImageLayout(
+	GenerateMipmaps(
 		model->textureImage,
 		VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		texWidth,
+		texHeight,
+		model->textureMipLevels);
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -716,11 +725,15 @@ void Video::CreateTextureImage(Model* model)
 	model->textureImageView = CreateImageView(
 		model->textureImage,
 		VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_ASPECT_COLOR_BIT);
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		model->textureMipLevels);
+
+	CreateTextureSampler(model);
 }
 
 void Video::DestroyTextureImage(Model* model)
 {
+	DestroyTextureSampler(model);
 	vkDestroyImageView(device, model->textureImageView, nullptr);
 	vkDestroyImage(device, model->textureImage, nullptr);
 	textureImageMemoryManager->Free(model->textureImageMemory);
@@ -829,6 +842,7 @@ void Video::CreateDepthResources()
 	CreateImage(
 		swapchainExtent.width,
 		swapchainExtent.height,
+		1,
 		depthFormat,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -839,13 +853,15 @@ void Video::CreateDepthResources()
 	depthImageView = CreateImageView(
 		depthImage,
 		depthFormat,
-		VK_IMAGE_ASPECT_DEPTH_BIT);
+		VK_IMAGE_ASPECT_DEPTH_BIT,
+		1);
 
 	TransitionImageLayout(
 		depthImage,
 		depthFormat,
 		VK_IMAGE_LAYOUT_UNDEFINED,
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		1);
 }
 
 void Video::DestroyDepthResources()
@@ -863,7 +879,8 @@ void Video::CreateImageViews()
 		swapchainImageViews[i] = CreateImageView(
 			swapchainImages[i],
 			swapchainImageFormat,
-			VK_IMAGE_ASPECT_COLOR_BIT);
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			1);
 	}
 }
 
@@ -1015,7 +1032,7 @@ void Video::CreateDescriptorSets(Model* model)
 		imageInfo.imageLayout =
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		imageInfo.imageView = model->textureImageView;
-		imageInfo.sampler = textureSampler;
+		imageInfo.sampler = model->textureSampler;
 
 		std::vector<VkWriteDescriptorSet> descriptorWrites(2);
 
@@ -1852,6 +1869,7 @@ VkExtent2D Video::ChooseSwapchainExtent(
 void Video::CreateImage(
 	uint32_t width,
 	uint32_t height,
+	uint32_t mipLevels,
 	VkFormat format,
 	VkImageTiling tiling,
 	VkImageUsageFlags usage,
@@ -1865,7 +1883,7 @@ void Video::CreateImage(
 	imageInfo.extent.width = width;
 	imageInfo.extent.height = height;
 	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = 1;
+	imageInfo.mipLevels = mipLevels;
 	imageInfo.arrayLayers = 1;
 	imageInfo.format = format;
 	imageInfo.tiling = tiling;
@@ -1961,7 +1979,8 @@ VkFormat Video::FindSupportedFormat(
 VkImageView Video::CreateImageView(
 	VkImage image,
 	VkFormat format,
-	VkImageAspectFlags aspectFlags)
+	VkImageAspectFlags aspectFlags,
+	uint32_t mipLevels)
 {
 	VkImageViewCreateInfo viewInfo{};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1970,7 +1989,7 @@ VkImageView Video::CreateImageView(
 	viewInfo.format = format;
 	viewInfo.subresourceRange.aspectMask = aspectFlags;
 	viewInfo.subresourceRange.baseMipLevel = 0;
-	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.levelCount = mipLevels;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
 	viewInfo.subresourceRange.layerCount = 1;
 
@@ -1990,7 +2009,8 @@ void Video::TransitionImageLayout(
 	VkImage image,
 	VkFormat format,
 	VkImageLayout oldLayout,
-	VkImageLayout newLayout)
+	VkImageLayout newLayout,
+	uint32_t mipLevels)
 {
 	VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
 
@@ -2016,7 +2036,7 @@ void Video::TransitionImageLayout(
 	}
 
 	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.levelCount = mipLevels;
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 
@@ -2142,7 +2162,8 @@ void Video::CreateBuffer(
 				8192,
 				FindMemoryType(
 					memRequirements.memoryTypeBits,
-					properties));
+					properties),
+				memRequirements.alignment);
 		}
 
 		memoryManager = vertexBufferMemoryManager;
@@ -2153,7 +2174,8 @@ void Video::CreateBuffer(
 				8192,
 				FindMemoryType(
 					memRequirements.memoryTypeBits,
-					properties));
+					properties),
+				memRequirements.alignment);
 		}
 
 		memoryManager = indexBufferMemoryManager;
@@ -2164,7 +2186,8 @@ void Video::CreateBuffer(
 				8192,
 				FindMemoryType(
 					memRequirements.memoryTypeBits,
-					properties));
+					properties),
+				memRequirements.alignment);
 		}
 
 		memoryManager = uniformBufferMemoryManager;
@@ -2239,6 +2262,7 @@ void Video::CopyBuffer(
 void Video::CreateImage(
 	uint32_t width,
 	uint32_t height,
+	uint32_t mipLevels,
 	VkFormat format,
 	VkImageTiling tiling,
 	VkImageUsageFlags usage,
@@ -2253,7 +2277,7 @@ void Video::CreateImage(
 	imageInfo.extent.width = width;
 	imageInfo.extent.height = height;
 	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = 1;
+	imageInfo.mipLevels = mipLevels;
 	imageInfo.arrayLayers = 1;
 	imageInfo.format = format;
 	imageInfo.tiling = tiling;
@@ -2281,7 +2305,8 @@ void Video::CreateImage(
 				65536,
 				FindMemoryType(
 					memRequirements.memoryTypeBits,
-					properties));
+					properties),
+				memRequirements.alignment);
 		}
 
 		memoryManager = textureImageMemoryManager;
@@ -2432,7 +2457,7 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			commandBuffer,
 			model->indexBuffer,
 			0,
-			VK_INDEX_TYPE_UINT16);
+			VK_INDEX_TYPE_UINT32);
 
 		vkCmdBindDescriptorSets(
 			commandBuffer,
@@ -2509,10 +2534,197 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 	cameraMutex.unlock();
 }
 
+void Video::LoadModelFromObj(Model* model, const std::string& fileName)
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string warn;
+	std::string err;
+
+	bool success = tinyobj::LoadObj(
+		&attrib,
+		&shapes,
+		&materials, &warn,
+		&err,
+		fileName.c_str());
+
+	if (!success) {
+		throw std::runtime_error(warn + err);
+	}
+
+	model->vertices.clear();
+	model->indices.clear();
+
+	for (const auto& shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			Model::Vertex vertex{};
+
+			vertex.pos = {
+				attrib.vertices[3 * index.vertex_index],
+				attrib.vertices[3 * index.vertex_index + 1],
+				attrib.vertices[3 * index.vertex_index + 2]
+			};
+
+			vertex.texCoord = {
+				attrib.texcoords[2 * index.texcoord_index],
+				1.0 - attrib.texcoords[2 *
+					index.texcoord_index + 1]
+			};
+
+			vertex.color = {1.0f, 1.0f, 1.0f};
+
+			model->vertices.push_back(vertex);
+			model->indices.push_back(model->indices.size());
+		}
+	}
+}
+
+void Video::GenerateMipmaps(
+	VkImage image,
+	VkFormat imageFormat,
+	uint32_t texWidth,
+	uint32_t texHeight,
+	uint32_t mipLevels)
+{
+	VkFormatProperties formatProperties;
+	vkGetPhysicalDeviceFormatProperties(
+		physicalDevice,
+		imageFormat,
+		&formatProperties);
+
+	bool success = formatProperties.optimalTilingFeatures &
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+
+	if (!success) {
+		throw std::runtime_error(
+			"image format does not support linear blitting");
+	}
+
+	VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.image = image;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	barrier.subresourceRange.levelCount = 1;
+
+	uint32_t mipWidth = texWidth;
+	uint32_t mipHeight = texHeight;
+
+	for (uint32_t i = 1; i < mipLevels; ++i) {
+		barrier.subresourceRange.baseMipLevel = i - 1;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+		vkCmdPipelineBarrier(
+			commandBuffer,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			0,
+			0,
+			nullptr,
+			0,
+			nullptr,
+			1,
+			&barrier);
+
+		VkImageBlit blit{};
+		blit.srcOffsets[0] = {0, 0, 0};
+		blit.srcOffsets[1] = {
+			static_cast<int32_t>(mipWidth),
+			static_cast<int32_t>(mipHeight),
+			1
+		};
+
+		blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.srcSubresource.mipLevel = i - 1;
+		blit.srcSubresource.baseArrayLayer = 0;
+		blit.srcSubresource.layerCount = 1;
+
+		blit.dstOffsets[0] = {0, 0, 0};
+		blit.dstOffsets[1] = {
+			static_cast<int32_t>(mipWidth > 1 ? mipWidth / 2 : 1),
+			static_cast<int32_t>(mipHeight > 1 ? mipHeight / 2 : 1),
+			1
+		};
+
+		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.dstSubresource.mipLevel = i;
+		blit.dstSubresource.baseArrayLayer = 0;
+		blit.dstSubresource.layerCount = 1;
+
+		vkCmdBlitImage(
+			commandBuffer,
+			image,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&blit,
+			VK_FILTER_LINEAR);
+
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		vkCmdPipelineBarrier(
+			commandBuffer,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			0,
+			0,
+			nullptr,
+			0,
+			nullptr,
+			1,
+			&barrier);
+
+		if (mipWidth > 1) {
+			mipWidth /= 2;
+		}
+
+		if (mipHeight > 1) {
+			mipHeight /= 2;
+		}
+	}
+
+	barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		0,
+		0,
+		nullptr,
+		0,
+		nullptr,
+		1,
+		&barrier);
+
+	EndSingleTimeCommands(commandBuffer);
+}
+
 // Public methods
 Model* Video::CreateModel(std::string* fileName)
 {
 	Model* model = new Model();
+
+	if (fileName) {
+		LoadModelFromObj(model, *fileName);
+	}
 
 	model->loaded = false;
 	model->active = false;
@@ -2620,9 +2832,10 @@ void Video::SetCamera(
 Video::GPUMemoryManager::GPUMemoryManager(
 	VkDevice device,
 	uint32_t partSize,
-	uint32_t memoryTypeIndex)
+	uint32_t memoryTypeIndex,
+	uint32_t alignment)
 {
-	alignment = 512;
+	this->alignment = alignment;
 	this->device = device;
 	this->partSize = partSize;
 	this->memoryTypeIndex = memoryTypeIndex;
@@ -2641,7 +2854,7 @@ void Video::GPUMemoryManager::AddPartition()
 {
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = alignment * 2 * partSize;
+	allocInfo.allocationSize = alignment * partSize;
 	allocInfo.memoryTypeIndex = memoryTypeIndex;
 
 	VkDeviceMemory memory;
@@ -2653,7 +2866,7 @@ void Video::GPUMemoryManager::AddPartition()
 	}
 
 	partitions.push_back(memory);
-	partitionData.push_back(std::vector<bool>(partSize * 2, false));
+	partitionData.push_back(std::vector<bool>(partSize, false));
 }
 
 Video::GPUMemoryManager::MemoryAllocationProperties
@@ -2741,7 +2954,7 @@ void Video::GPUMemoryManager::Free(
 // Model
 void Model::UpdateBuffers(
 	const std::vector<Vertex>& vertices,
-	const std::vector<uint16_t>& indices)
+	const std::vector<VertexIndexType>& indices)
 {
 	if (loaded) {
 		throw std::runtime_error("model is loaded");

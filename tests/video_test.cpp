@@ -20,9 +20,9 @@ void thr(Video* video)
 		time /= 10.0f;
 
 		glm::vec3 pos(
-			sin(time) * 2.0f,
-			cos(time) * 2.0f,
-			cos(time * 10.0f) + 2.0f);
+			sin(time) + 2.0f,
+			cos(time) + 2.0f,
+			2.0f);
 
 		video->SetCamera(&pos, nullptr, nullptr);
 
@@ -38,13 +38,13 @@ int main()
 		{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
 		{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 
-		{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {2.0f, 0.0f}},
 		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-		{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-		{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+		{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 2.0f}},
+		{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {2.0f, 2.0f}}
 	};
 
-	std::vector<uint16_t> indices = {
+	std::vector<Model::VertexIndexType> indices = {
 		0, 1, 2, 2, 3, 0,
 		4, 5, 6, 6, 7, 4
 	};
@@ -59,11 +59,11 @@ int main()
 
 	std::thread camThr(thr, &video);
 
-	Model* md = video.CreateModel(nullptr);
 
-	md->UpdateBuffers(vertices, indices);
+	std::string modelName("../src/client/video/models/viking_room.obj");
+	Model* md = video.CreateModel(&modelName);
 
-	md->SetTextureName("../src/client/video/textures/test_texture.png");
+	md->SetTextureName("../src/client/video/textures/viking_room.png");
 
 	md->modelPosition = glm::rotate(
 		glm::mat4(1.0f),
@@ -74,6 +74,35 @@ int main()
 
 	video.LoadModel(md);
 
+
+	vertices = {
+		{{-0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+
+		{{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {2.0f, 0.0f}},
+		{{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 2.0f}},
+		{{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {2.0f, 2.0f}}
+	};
+
+	Model* md1 = video.CreateModel(nullptr);
+
+	md1->UpdateBuffers(vertices, indices);
+
+	md1->SetTextureName("../src/client/video/textures/test_texture.png");
+
+	md1->modelPosition = glm::rotate(
+		glm::mat4(1.0f),
+		glm::radians(60.0f),
+		glm::vec3(0.0f, 0.0f, 1.0f));
+
+	md1->active = false;
+
+	video.LoadModel(md1);
+
+
 	video.Start();
 
 	op = false;
@@ -82,5 +111,9 @@ int main()
 
 	video.UnloadModel(md);
 	video.DestroyModel(md);
+
+	video.UnloadModel(md1);
+	video.DestroyModel(md1);
+
 	return 0;
 }

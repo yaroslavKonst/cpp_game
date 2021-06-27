@@ -18,6 +18,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+
 class Model;
 
 class Video
@@ -32,10 +33,11 @@ public:
 			uint32_t size;
 			uint32_t offset;
 			VkDeviceMemory memory;
+
 		};
 
 	private:
-		uint32_t partSize; // Partition size in KB.
+		uint32_t partSize;
 		uint32_t memoryTypeIndex;
 		uint32_t alignment;
 		VkDevice device;
@@ -48,7 +50,8 @@ public:
 		GPUMemoryManager(
 			VkDevice device,
 			uint32_t partSize,
-			uint32_t memoryTypeIndex);
+			uint32_t memoryTypeIndex,
+			uint32_t alignment);
 		~GPUMemoryManager();
 
 		MemoryAllocationProperties Allocate(uint32_t size);
@@ -142,10 +145,6 @@ private:
 	void CreateDescriptorSetLayout();
 	void DestroyDescriptorSetLayout();
 
-	VkSampler textureSampler;
-	void CreateTextureSampler();
-	void DestroyTextureSampler();
-
 	// Swapchain objects
 	void CreateSwapchain();
 	void DestroySwapchain();
@@ -203,6 +202,8 @@ private:
 	void DestroyTextureImages();
 	void CreateTextureImage(Model* model);
 	void DestroyTextureImage(Model* model);
+	void CreateTextureSampler(Model* model);
+	void DestroyTextureSampler(Model* model);
 
 	VkRenderPass renderPass;
 	void CreateRenderPass();
@@ -253,6 +254,7 @@ private:
 	void CreateImage(
 		uint32_t width,
 		uint32_t height,
+		uint32_t mipLevels,
 		VkFormat format,
 		VkImageTiling tiling,
 		VkImageUsageFlags usage,
@@ -270,12 +272,14 @@ private:
 	VkImageView CreateImageView(
 		VkImage image,
 		VkFormat format,
-		VkImageAspectFlags aspectFlags);
+		VkImageAspectFlags aspectFlags,
+		uint32_t mipLevels);
 	void TransitionImageLayout(
 		VkImage image,
 		VkFormat format,
 		VkImageLayout oldLayout,
-		VkImageLayout newLayout);
+		VkImageLayout newLayout,
+		uint32_t mipLevels);
 	VkCommandBuffer BeginSingleTimeCommands();
 	void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 	bool HasStencilComponent(VkFormat format);
@@ -299,6 +303,7 @@ private:
 	void CreateImage(
 		uint32_t width,
 		uint32_t height,
+		uint32_t mipLevels,
 		VkFormat format,
 		VkImageTiling tiling,
 		VkImageUsageFlags usage,
@@ -314,6 +319,13 @@ private:
 	VkShaderModule CreateShaderModule(uint32_t size, const uint32_t* code);
 	void CreateCommandBuffer(uint32_t imageIndex);
 	void UpdateUniformBuffers(uint32_t imageIndex);
+	void LoadModelFromObj(Model* model, const std::string& fileName);
+	void GenerateMipmaps(
+		VkImage image,
+		VkFormat imageFormat,
+		uint32_t texWidth,
+		uint32_t texHeight,
+		uint32_t mipLevels);
 
 	// Rendering
 	void DrawFrame();
@@ -343,6 +355,8 @@ class Model
 	friend class Video;
 
 public:
+	typedef uint32_t VertexIndexType;
+
 	struct Vertex
 	{
 		glm::vec3 pos;
@@ -363,7 +377,7 @@ private:
 	};
 
 	std::vector<Vertex> vertices;
-	std::vector<uint16_t> indices;
+	std::vector<VertexIndexType> indices;
 
 	std::string textureName;
 
@@ -378,7 +392,9 @@ private:
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
 
+	uint32_t textureMipLevels;
 	VkImage textureImage;
+	VkSampler textureSampler;
 	VkImageView textureImageView;
 	Video::GPUMemoryManager::MemoryAllocationProperties textureImageMemory;
 
@@ -398,7 +414,7 @@ public:
 
 	void UpdateBuffers(
 		const std::vector<Vertex>& vertices,
-		const std::vector<uint16_t>& indices);
+		const std::vector<VertexIndexType>& indices);
 
 	void SetTextureName(const std::string& name);
 };
