@@ -34,7 +34,12 @@ Video::~Video()
 
 void Video::InitWindow(int width, int height)
 {
-	glfwInit();
+	bool success = glfwInit();
+
+	if (!success) {
+		throw std::runtime_error("failed to init GLFW");
+	}
+
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
 	window = glfwCreateWindow(
@@ -43,6 +48,11 @@ void Video::InitWindow(int width, int height)
 		ApplicationName.c_str(),
 		nullptr,
 		nullptr);
+
+	if (!window) {
+		glfwTerminate();
+		throw std::runtime_error("failed to create window");
+	}
 
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
