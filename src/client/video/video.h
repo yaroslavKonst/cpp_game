@@ -245,12 +245,31 @@ private:
 	void InitWindow(int width, int height);
 	void CloseWindow();
 
-	// Helper functions
-	std::vector<const char*> GetValidationLayers();
+	// GLFW callbacks
 	static void FramebufferResizeCallback(
 		GLFWwindow* window,
 		int width,
 		int height);
+
+	struct KeyBinding
+	{
+		int key;
+		int action;
+		void* object;
+		void (*callback)(void*);
+	};
+
+	std::vector<KeyBinding> keyBindings;
+
+	static void KeyActionCallback(
+		GLFWwindow* window,
+		int key,
+		int scancode,
+		int action,
+		int mods);
+
+	// Helper functions
+	std::vector<const char*> GetValidationLayers();
 	bool IsDeviceSuitable(VkPhysicalDevice device);
 	bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 	SwapchainSupportDetails QuerySwapchainSupport(VkPhysicalDevice device);
@@ -360,6 +379,14 @@ public:
 		const glm::vec3* position,
 		const glm::vec3* target,
 		const glm::vec3* up);
+
+	void BindKey(
+		int key,
+		int action,
+		void* object,
+		void (*callback)(void*));
+
+	void ClearKeyBindings();
 };
 
 class Model

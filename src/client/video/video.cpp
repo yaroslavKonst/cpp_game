@@ -56,6 +56,7 @@ void Video::InitWindow(int width, int height)
 
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
+	glfwSetKeyCallback(window, KeyActionCallback);
 }
 
 void Video::CloseWindow()
@@ -1873,6 +1874,23 @@ void Video::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
 	video->framebufferResized = true;
 }
 
+void Video::KeyActionCallback(
+	GLFWwindow* window,
+	int key,
+	int scancode,
+	int action,
+	int mods)
+{
+	Video* video = reinterpret_cast<Video*>(
+		glfwGetWindowUserPointer(window));
+
+	for (const auto& keyBinding : video->keyBindings) {
+		if (keyBinding.key == key && keyBinding.action == action) {
+			keyBinding.callback(keyBinding.object);
+		}
+	}
+}
+
 VkSurfaceFormatKHR Video::ChooseSwapchainSurfaceFormat(
 	const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
@@ -2946,6 +2964,27 @@ void Video::SetCamera(
 	}
 
 	cameraMutex.unlock();
+}
+
+void Video::BindKey(
+	int key,
+	int action,
+	void* object,
+	void (*callback)(void*))
+{
+	KeyBinding binding;
+
+	binding.key = key;
+	binding.action = action;
+	binding.object = object;
+	binding.callback = callback;
+
+	keyBindings.push_back(binding);
+}
+
+void Video::ClearKeyBindings()
+{
+	keyBindings.clear();
 }
 
 // GPUMemoryManager
