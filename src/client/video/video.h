@@ -256,7 +256,7 @@ private:
 		int key;
 		int action;
 		void* object;
-		void (*callback)(void*);
+		void (*callback)(int, int, void*);
 	};
 
 	std::vector<KeyBinding> keyBindings;
@@ -384,7 +384,7 @@ public:
 		int key,
 		int action,
 		void* object,
-		void (*callback)(void*));
+		void (*callback)(int, int, void*));
 
 	void ClearKeyBindings();
 };

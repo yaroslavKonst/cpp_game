@@ -1886,7 +1886,7 @@ void Video::KeyActionCallback(
 
 	for (const auto& keyBinding : video->keyBindings) {
 		if (keyBinding.key == key && keyBinding.action == action) {
-			keyBinding.callback(keyBinding.object);
+			keyBinding.callback(key, action, keyBinding.object);
 		}
 	}
 }
@@ -2970,7 +2970,7 @@ void Video::BindKey(
 	int key,
 	int action,
 	void* object,
-	void (*callback)(void*))
+	void (*callback)(int, int, void*))
 {
 	KeyBinding binding;
 
