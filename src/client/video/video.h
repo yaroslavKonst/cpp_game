@@ -268,6 +268,23 @@ private:
 		int action,
 		int mods);
 
+	void* cursorMoveController;
+	void (*cursorMoveCallback)(double, double, void*);
+
+	static void CursorMoveCallback(
+		GLFWwindow* window,
+		double xpos,
+		double ypos);
+
+	void* mouseButtonController;
+	void (*mouseButtonCallback)(int, int, void*);
+
+	static void MouseButtonCallback(
+		GLFWwindow* window,
+		int button,
+		int action,
+		int mods);
+
 	// Helper functions
 	std::vector<const char*> GetValidationLayers();
 	bool IsDeviceSuitable(VkPhysicalDevice device);
@@ -387,6 +404,16 @@ public:
 		void (*callback)(int, int, void*));
 
 	void ClearKeyBindings();
+
+	void SetCursorMoveCallback(
+		void* object,
+		void (*callback)(double, double, void*));
+	void SetMouseButtonCallback(
+		void* object,
+		void (*callback)(int, int, void*));
+
+	void SetNormalMouseMode();
+	void SetCameraMouseMode();
 };
 
 class Model

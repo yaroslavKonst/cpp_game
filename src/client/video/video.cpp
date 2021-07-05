@@ -57,6 +57,8 @@ void Video::InitWindow(int width, int height)
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 	glfwSetKeyCallback(window, KeyActionCallback);
+	glfwSetCursorPosCallback(window, CursorMoveCallback);
+	glfwSetMouseButtonCallback(window, MouseButtonCallback);
 }
 
 void Video::CloseWindow()
@@ -86,6 +88,11 @@ void Video::InitVulkan()
 	allowDescriptorSetCreation = false;
 	allowTextureImageCreation = false;
 	framebufferResized = false;
+
+	cursorMoveController = nullptr;
+	cursorMoveCallback = nullptr;
+	mouseButtonController = nullptr;
+	mouseButtonCallback = nullptr;
 
 	CreateInstance();
 	CreateSurface();
@@ -1891,6 +1898,36 @@ void Video::KeyActionCallback(
 	}
 }
 
+void Video::CursorMoveCallback(GLFWwindow* window, double xpos, double ypos)
+{
+	Video* video = reinterpret_cast<Video*>(
+		glfwGetWindowUserPointer(window));
+
+	if (video->cursorMoveCallback) {
+		video->cursorMoveCallback(
+			xpos,
+			ypos,
+			video->cursorMoveController);
+	}
+}
+
+void Video::MouseButtonCallback(
+	GLFWwindow* window,
+	int button,
+	int action,
+	int mods)
+{
+	Video* video = reinterpret_cast<Video*>(
+		glfwGetWindowUserPointer(window));
+
+	if (video->mouseButtonCallback) {
+		video->mouseButtonCallback(
+			button,
+			action,
+			video->mouseButtonController);
+	}
+}
+
 VkSurfaceFormatKHR Video::ChooseSwapchainSurfaceFormat(
 	const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
@@ -2985,6 +3022,32 @@ void Video::BindKey(
 void Video::ClearKeyBindings()
 {
 	keyBindings.clear();
+}
+
+void Video::SetCursorMoveCallback(
+	void* object,
+	void (*callback)(double, double, void*))
+{
+	cursorMoveController = object;
+	cursorMoveCallback = callback;
+}
+
+void Video::SetMouseButtonCallback(
+	void* object,
+	void (*callback)(int, int, void*))
+{
+	mouseButtonController = object;
+	mouseButtonCallback = callback;
+}
+
+void Video::SetNormalMouseMode()
+{
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+void Video::SetCameraMouseMode()
+{
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 // GPUMemoryManager
