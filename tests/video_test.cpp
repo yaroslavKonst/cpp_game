@@ -14,6 +14,15 @@ public:
 	float deltaY;
 	float mult;
 
+	bool cModeInvert;
+	bool cModeCamera;
+
+	double angleX;
+	double angleY;
+
+	double posXOld;
+	double posYOld;
+
 	std::chrono::high_resolution_clock::time_point startTime;
 
 	glm::vec3 pos;
@@ -44,6 +53,17 @@ public:
 
 		video->BindKey(GLFW_KEY_D, GLFW_PRESS, this, KeyAction);
 		video->BindKey(GLFW_KEY_D, GLFW_RELEASE, this, KeyAction);
+
+		video->BindKey(GLFW_KEY_C, GLFW_PRESS, this, KeyAction);
+
+		video->SetCursorMoveCallback(this, CursorMove);
+		video->SetMouseButtonCallback(this, MouseButton);
+
+		cModeInvert = false;
+		cModeCamera = false;
+
+		angleX = 222;
+		angleY = -33;
 	}
 
 	static void KeyAction(int key, int action, void* data)
@@ -53,31 +73,64 @@ public:
 
 		float* axis = nullptr;
 
+		bool movingKey = false;
+
 		if (key == GLFW_KEY_W) {
 			controller->mult = -1.0;
 			axis = &controller->deltaX;
+			movingKey = true;
 		} else if (key == GLFW_KEY_A) {
 			controller->mult = -1.0;
 			axis = &controller->deltaY;
+			movingKey = true;
 		} else if (key == GLFW_KEY_S) {
 			controller->mult = 1.0;
 			axis = &controller->deltaX;
+			movingKey = true;
 		} else if (key == GLFW_KEY_D) {
 			controller->mult = 1.0;
 			axis = &controller->deltaY;
+			movingKey = true;
+		} else if (key == GLFW_KEY_C) {
+			controller->cModeInvert = true;
 		}
 
-		if (action == GLFW_PRESS) {
+		if (movingKey && action == GLFW_PRESS) {
 			controller->startTime =
 				std::chrono::high_resolution_clock::now();
 			controller->pos = controller->currPos;
 			*axis = 1.0;
-		} else if (action == GLFW_RELEASE) {
+		} else if (movingKey && action == GLFW_RELEASE) {
 			controller->startTime =
 				std::chrono::high_resolution_clock::now();
 			controller->pos = controller->currPos;
 			*axis = 0.0;
 		}
+	}
+
+	static void CursorMove(double posX, double posY, void* data)
+	{
+		CameraController* controller =
+			reinterpret_cast<CameraController*>(data);
+
+		if (controller->cModeCamera) {
+			float offsetX = posX - controller->posXOld;
+			float offsetY = posY - controller->posYOld;
+
+			controller->angleX -= offsetX / 12.0;
+			controller->angleY -= offsetY / 12.0;
+		}
+
+		controller->posXOld = posX;
+		controller->posYOld = posY;
+	}
+
+	static void MouseButton(int button, int action, void* data)
+	{
+		CameraController* controller =
+			reinterpret_cast<CameraController*>(data);
+
+		controller->cModeInvert = true;
 	}
 
 	static void thr(CameraController* controller)
@@ -102,10 +155,33 @@ public:
 				2.0
 			};
 
+			glm::vec3 dir;
+
+			float angleX = glm::radians(controller->angleX);
+			float angleY = glm::radians(controller->angleY);
+
+			dir.x = cos(angleX) * cos(angleY);
+			dir.y = sin(angleX) * cos(angleY);
+			dir.z = sin(angleY);
+
+			dir += controller->currPos;
+
 			controller->video->SetCamera(
 				&controller->currPos,
-				nullptr,
+				&dir,
 				nullptr);
+
+			if (controller->cModeInvert) {
+				if (controller->cModeCamera) {
+					controller->video->SetNormalMouseMode();
+				} else {
+					controller->video->SetCameraMouseMode();
+				}
+
+				controller->cModeCamera =
+					!(controller->cModeCamera);
+				controller->cModeInvert = false;
+			}
 
 			usleep(1000);
 		}

@@ -16,8 +16,6 @@
 #define VALIDATE true
 #endif
 
-#include <iostream>
-
 Video::Video(const std::string& name, int width, int height)
 {
 	ApplicationName = name;
@@ -2621,7 +2619,7 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 		float(swapchainExtent.width) /
 		float(swapchainExtent.height),
 		0.1f,
-		10.0f);
+		100.0f);
 	ubo.proj[1][1] *= -1;
 
 	ubo.view = glm::lookAt(
