@@ -16,6 +16,8 @@
 #define VALIDATE true
 #endif
 
+#include <iostream>
+
 Video::Video(const std::string& name, int width, int height)
 {
 	ApplicationName = name;
@@ -95,6 +97,8 @@ void Video::InitVulkan()
 	scrollController = nullptr;
 	scrollCallback = nullptr;
 
+	skybox = nullptr;
+
 	CreateInstance();
 	CreateSurface();
 	PickPhysicalDevice();
@@ -119,6 +123,7 @@ void Video::CloseVulkan()
 	DestroyDescriptorSetLayout();
 	DestroySyncObjects();
 	DestroyCommandPools();
+	DestroySkybox();
 
 	if (vertexBufferMemoryManager) {
 		delete vertexBufferMemoryManager;
@@ -762,6 +767,105 @@ void Video::DestroyTextureImage(Model* model)
 	textureImageMemoryManager->Free(model->textureImageMemory);
 }
 
+void Video::LoadSkybox(std::string fileName)
+{
+	if (skybox) {
+		DestroySkybox();
+	}
+
+	skybox = new Model();
+
+	skybox->SetTextureName(fileName);
+	skybox->modelPosition = glm::mat4(1.0f);
+	skybox->active = true;
+	skybox->loaded = false;
+
+	const double h0 = 0.0;
+	const double h1 = 1.0 / 3.0;
+	const double h2 = 2.0 / 3.0;
+	const double h3 = 1.0;
+
+	const double v0 = 0.0;
+	const double v1 = 0.25;
+	const double v2 = 0.5;
+	const double v3 = 0.75;
+	const double v4 = 1.0;
+
+	std::vector<Model::Vertex> vertices = {
+		// Bottom
+		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h2}},
+		{{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h2}},
+		{{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h3}},
+		{{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h3}},
+
+		// Top
+		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h1}},
+		{{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h1}},
+		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h0}},
+		{{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h0}},
+
+		// Front
+		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h2}},
+		{{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h2}},
+		{{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h1}},
+		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h1}},
+
+		// Back
+		{{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v4, h2}},
+		{{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h2}},
+		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h1}},
+		{{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v4, h1}},
+
+		// Left
+		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h2}},
+		{{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v0, h2}},
+		{{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v0, h1}},
+		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h1}},
+
+		// Right
+		{{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h2}},
+		{{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h2}},
+		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h1}},
+		{{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h1}}
+	};
+
+	std::vector<Model::VertexIndexType> indices = {
+		3, 0, 1, 3, 1, 2,
+		5, 4, 7, 5, 7, 6,
+		9, 8, 11, 11, 10, 9,
+		15, 12, 13, 15, 13, 14,
+		19, 16, 17, 19, 17, 18,
+		21, 20, 23, 21, 23, 22
+	};
+
+	skybox->UpdateBuffers(vertices, indices);
+
+	CreateVertexBuffer(skybox);
+	CreateIndexBuffer(skybox);
+	CreateTextureImage(skybox);
+	CreateUniformBuffers(skybox);
+	CreateDescriptorPool(skybox->descriptorPool);
+	CreateDescriptorSets(skybox);
+
+	skybox->loaded = true;
+}
+
+void Video::DestroySkybox()
+{
+	if (!skybox) {
+		return;
+	}
+
+	DestroyDescriptorPool(skybox->descriptorPool);
+	DestroyUniformBuffers(skybox);
+	DestroyTextureImage(skybox);
+	DestroyIndexBuffer(skybox);
+	DestroyVertexBuffer(skybox);
+
+	delete skybox;
+	skybox = nullptr;
+}
+
 // Swapchain methods
 void Video::CreateSwapchainInstance()
 {
@@ -1130,7 +1234,7 @@ void Video::CreateRenderPass()
 	colorAttachment.format = swapchainImageFormat;
 	colorAttachment.samples = msaaSamples;
 
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -2085,7 +2189,8 @@ VkFormat Video::FindDepthFormat()
 			VK_FORMAT_D24_UNORM_S8_UINT
 		},
 		VK_IMAGE_TILING_OPTIMAL,
-		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT |
+		VK_FORMAT_FEATURE_TRANSFER_DST_BIT);
 }
 
 VkFormat Video::FindSupportedFormat(
@@ -2560,7 +2665,6 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 
 	VkClearValue clearValues[2];
 
-	clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
 	clearValues[1].depthStencil = {1.0f, 0};
 
 	renderPassInfo.clearValueCount = 2;
@@ -2575,6 +2679,63 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 		commandBuffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
 		graphicsPipeline);
+
+	if (skybox && skybox->active) {
+		VkBuffer vertexBuffers[] = {skybox->vertexBuffer};
+		VkDeviceSize offsets[] = {0};
+
+		vkCmdBindVertexBuffers(
+			commandBuffer,
+			0,
+			1,
+			vertexBuffers,
+			offsets);
+
+		vkCmdBindIndexBuffer(
+			commandBuffer,
+			skybox->indexBuffer,
+			0,
+			VK_INDEX_TYPE_UINT32);
+
+		vkCmdBindDescriptorSets(
+			commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			pipelineLayout,
+			0,
+			1,
+			&skybox->descriptorSets[imageIndex],
+			0,
+			nullptr);
+
+		vkCmdDrawIndexed(
+			commandBuffer,
+			static_cast<uint32_t>(skybox->indices.size()),
+			1,
+			0,
+			0,
+			0);
+
+		vkCmdEndRenderPass(commandBuffer);
+
+		VkRenderPassBeginInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = renderPass;
+		renderPassInfo.framebuffer = swapchainFramebuffers[imageIndex];
+		renderPassInfo.renderArea.offset = {0, 0};
+		renderPassInfo.renderArea.extent = swapchainExtent;
+
+		VkClearValue clearValues[2];
+
+		clearValues[1].depthStencil = {1.0f, 0};
+
+		renderPassInfo.clearValueCount = 2;
+		renderPassInfo.pClearValues = clearValues;
+
+		vkCmdBeginRenderPass(
+			commandBuffer,
+			&renderPassInfo,
+			VK_SUBPASS_CONTENTS_INLINE);
+	}
 
 	for (Model* model : models) {
 		if (!model->active) {
@@ -2646,8 +2807,31 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 		camera.target,
 		camera.up);
 
-	for (Model* model : models) {
-		
+	if (skybox) {
+		ubo.model = glm::translate(
+			skybox->modelPosition,
+			camera.position);
+
+		void* data;
+		VkResult res = vkMapMemory(
+			device,
+			skybox->uniformBufferMemory[imageIndex].memory,
+			skybox->uniformBufferMemory[imageIndex].offset,
+			sizeof(ubo),
+			0,
+			&data);
+
+		if (res != VK_SUCCESS) {
+			throw std::runtime_error("failed to map memory");
+		}
+
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(
+			device, 
+			skybox->uniformBufferMemory[imageIndex].memory);
+	}
+
+	for (Model* model : models) {	
 		ubo.model = model->modelPosition;
 
 		void* data;
@@ -3017,6 +3201,11 @@ void Video::SetCamera(
 	}
 
 	cameraMutex.unlock();
+}
+
+void Video::CreateSkybox(std::string fileName)
+{
+	LoadSkybox(fileName);
 }
 
 void Video::BindKey(

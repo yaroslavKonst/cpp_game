@@ -144,7 +144,7 @@ public:
 		CameraController* controller =
 			reinterpret_cast<CameraController*>(data);
 
-		controller->zCoord += yoffset / 10.0f;
+		controller->zCoord += yoffset / 50.0f;
 	}
 
 	static void thr(CameraController* controller)
@@ -215,6 +215,8 @@ int main()
 	CameraController controller(&video);
 
 	std::thread camThr(CameraController::thr, &controller);
+
+	video.CreateSkybox("../src/client/video/textures/skybox.png");
 
 	std::string modelName("../src/client/video/models/viking_room.obj");
 	Model* md = video.CreateModel(&modelName);

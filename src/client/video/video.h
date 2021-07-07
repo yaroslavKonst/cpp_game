@@ -149,6 +149,10 @@ private:
 	void CreateDescriptorSetLayout();
 	void DestroyDescriptorSetLayout();
 
+	Model* skybox;
+	void LoadSkybox(std::string fileName);
+	void DestroySkybox();
+
 	// Swapchain objects
 	void CreateSwapchain();
 	void DestroySwapchain();
@@ -404,6 +408,8 @@ public:
 		const glm::vec3* position,
 		const glm::vec3* target,
 		const glm::vec3* up);
+
+	void CreateSkybox(std::string fileName);
 
 	void BindKey(
 		int key,
