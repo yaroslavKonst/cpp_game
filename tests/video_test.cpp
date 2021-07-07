@@ -14,6 +14,8 @@ public:
 	float deltaY;
 	float mult;
 
+	float zCoord;
+
 	bool cModeInvert;
 	bool cModeCamera;
 
@@ -37,6 +39,8 @@ public:
 		deltaY = 0.0;
 		mult = 0.0;
 
+		zCoord = 2.0;
+
 		pos = {2.0, 2.0, 2.0};
 		currPos = pos;
 
@@ -58,6 +62,8 @@ public:
 
 		video->SetCursorMoveCallback(this, CursorMove);
 		video->SetMouseButtonCallback(this, MouseButton);
+
+		video->SetScrollCallback(this, Scroll);
 
 		cModeInvert = false;
 		cModeCamera = false;
@@ -133,6 +139,14 @@ public:
 		controller->cModeInvert = true;
 	}
 
+	static void Scroll(double xoffset, double yoffset, void* data)
+	{
+		CameraController* controller =
+			reinterpret_cast<CameraController*>(data);
+
+		controller->zCoord += yoffset / 10.0f;
+	}
+
 	static void thr(CameraController* controller)
 	{
 		while (controller->op) {
@@ -152,7 +166,7 @@ public:
 				controller->pos.y +
 					controller->deltaY * controller->mult *
 					time,
-				2.0
+				controller->zCoord
 			};
 
 			glm::vec3 dir;

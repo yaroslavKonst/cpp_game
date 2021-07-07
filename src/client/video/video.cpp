@@ -57,6 +57,7 @@ void Video::InitWindow(int width, int height)
 	glfwSetKeyCallback(window, KeyActionCallback);
 	glfwSetCursorPosCallback(window, CursorMoveCallback);
 	glfwSetMouseButtonCallback(window, MouseButtonCallback);
+	glfwSetScrollCallback(window, ScrollCallback);
 }
 
 void Video::CloseWindow()
@@ -91,6 +92,8 @@ void Video::InitVulkan()
 	cursorMoveCallback = nullptr;
 	mouseButtonController = nullptr;
 	mouseButtonCallback = nullptr;
+	scrollController = nullptr;
+	scrollCallback = nullptr;
 
 	CreateInstance();
 	CreateSurface();
@@ -1926,6 +1929,22 @@ void Video::MouseButtonCallback(
 	}
 }
 
+void Video::ScrollCallback(
+	GLFWwindow* window,
+	double xoffset,
+	double yoffset)
+{
+	Video* video = reinterpret_cast<Video*>(
+		glfwGetWindowUserPointer(window));
+
+	if (video->scrollCallback) {
+		video->scrollCallback(
+			xoffset,
+			yoffset,
+			video->scrollController);
+	}
+}
+
 VkSurfaceFormatKHR Video::ChooseSwapchainSurfaceFormat(
 	const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
@@ -2655,7 +2674,6 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 
 namespace std
 {
-
 	template<>
 	struct hash<Model::Vertex>
 	{
@@ -3046,6 +3064,14 @@ void Video::SetNormalMouseMode()
 void Video::SetCameraMouseMode()
 {
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
+void Video::SetScrollCallback(
+	void* object,
+	void (*callback)(double, double, void*))
+{
+	scrollController = object;
+	scrollCallback = callback;
 }
 
 // GPUMemoryManager

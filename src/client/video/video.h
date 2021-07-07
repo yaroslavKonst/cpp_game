@@ -285,6 +285,14 @@ private:
 		int action,
 		int mods);
 
+	void* scrollController;
+	void (*scrollCallback)(double, double, void*);
+
+	static void ScrollCallback(
+		GLFWwindow* window,
+		double xoffset,
+		double yoffset);
+
 	// Helper functions
 	std::vector<const char*> GetValidationLayers();
 	bool IsDeviceSuitable(VkPhysicalDevice device);
@@ -414,6 +422,10 @@ public:
 
 	void SetNormalMouseMode();
 	void SetCameraMouseMode();
+
+	void SetScrollCallback(
+		void* object,
+		void (*callback)(double, double, void*));
 };
 
 class Model
