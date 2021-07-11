@@ -220,16 +220,26 @@ private:
 	void DestroyTextureSampler(Model* model);
 
 	VkRenderPass renderPass;
+	VkRenderPass skyboxRenderPass;
 	void CreateRenderPass();
+	void CreateObjectRenderPass();
+	void CreateSkyboxRenderPass();
 	void DestroyRenderPass();
 
 	VkPipeline graphicsPipeline;
 	VkPipelineLayout pipelineLayout;
+	VkPipeline skyboxGraphicsPipeline;
+	VkPipelineLayout skyboxPipelineLayout;
 	void CreateGraphicsPipeline();
+	void CreateObjectGraphicsPipeline();
+	void CreateSkyboxGraphicsPipeline();
 	void DestroyGraphicsPipeline();
 
 	std::vector<VkFramebuffer> swapchainFramebuffers;
+	std::vector<VkFramebuffer> skyboxSwapchainFramebuffers;
 	void CreateFramebuffers();
+	void CreateObjectFramebuffers();
+	void CreateSkyboxFramebuffers();
 	void DestroyFramebuffers();
 
 	std::vector<VkCommandBuffer> commandBuffers;
