@@ -142,6 +142,57 @@ public:
 	InstanceDescriptor& GetInstance(size_t index);
 };
 
+class InterfaceObject
+{
+	friend class Video;
+
+	float z;
+
+	struct Area
+	{
+		float x0;
+		float y0;
+		float x1;
+		float y1;
+	};
+
+	bool loaded;
+	std::vector<bool> free;
+
+	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> descriptorSets;
+
+	std::vector<VkBuffer> uniformBuffers;
+	std::vector<GPUMemoryManager::MemoryAllocationProperties>
+		uniformBufferMemory;
+
+	uint32_t textureMipLevels;
+	VkImage textureImage;
+	VkSampler textureSampler;
+	VkImageView textureImageView;
+	GPUMemoryManager::MemoryAllocationProperties textureImageMemory;
+
+public:
+	Area area;
+	std::string textureName;
+	bool active;
+
+	InterfaceObject()
+	{
+		active = false;
+		loaded = false;
+	}
+
+	virtual ~InterfaceObject()
+	{ }
+
+	virtual void MouseButton(int button, int action)
+	{ }
+
+	virtual void CursorMove(double posX, double posY)
+	{ }
+};
+
 class Video
 {
 public:
@@ -191,6 +242,7 @@ private:
 	std::mutex cameraMutex;
 
 	std::set<Model*> models;
+	std::set<InterfaceObject*> interfaceObjects;
 
 	uint32_t maxFramesInFlight;
 	uint32_t currentFrame;
@@ -288,6 +340,8 @@ private:
 	void DestroyDescriptorSets(
 		Model* model,
 		Model::InstanceDescriptor& instance);
+	void CreateDescriptorSets(InterfaceObject* object);
+	void DestroyDescriptorSets(InterfaceObject* object);
 
 	bool allowUniformBufferCreation;
 	void CreateUniformBuffers();
@@ -296,6 +350,8 @@ private:
 	void DestroyUniformBuffers(Model* model);
 	void CreateUniformBuffers(Model::InstanceDescriptor& instance);
 	void DestroyUniformBuffers(Model::InstanceDescriptor& instance);
+	void CreateUniformBuffers(InterfaceObject* object);
+	void DestroyUniformBuffers(InterfaceObject* object);
 
 	bool allowVertexBufferCreation;
 	void CreateVertexBuffers();
@@ -316,28 +372,39 @@ private:
 	void DestroyTextureImage(Model* model);
 	void CreateTextureSampler(Model* model);
 	void DestroyTextureSampler(Model* model);
+	void CreateTextureImage(InterfaceObject* object);
+	void DestroyTextureImage(InterfaceObject* object);
+	void CreateTextureSampler(InterfaceObject* object);
+	void DestroyTextureSampler(InterfaceObject* object);
 
 	VkRenderPass renderPass;
 	VkRenderPass skyboxRenderPass;
+	VkRenderPass interfaceRenderPass;
 	void CreateRenderPass();
 	void CreateObjectRenderPass();
 	void CreateSkyboxRenderPass();
+	void CreateInterfaceRenderPass();
 	void DestroyRenderPass();
 
 	VkPipeline graphicsPipeline;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline skyboxGraphicsPipeline;
 	VkPipelineLayout skyboxPipelineLayout;
+	VkPipeline interfaceGraphicsPipeline;
+	VkPipelineLayout interfacePipelineLayout;
 	void CreateGraphicsPipeline();
 	void CreateObjectGraphicsPipeline();
 	void CreateSkyboxGraphicsPipeline();
+	void CreateInterfaceGraphicsPipeline();
 	void DestroyGraphicsPipeline();
 
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 	std::vector<VkFramebuffer> skyboxSwapchainFramebuffers;
+	std::vector<VkFramebuffer> interfaceSwapchainFramebuffers;
 	void CreateFramebuffers();
 	void CreateObjectFramebuffers();
 	void CreateSkyboxFramebuffers();
+	void CreateInterfaceFramebuffers();
 	void DestroyFramebuffers();
 
 	std::vector<VkCommandBuffer> commandBuffers;
@@ -511,6 +578,12 @@ public:
 
 	Model::InstanceDescriptor& AddInstance(Model* model);
 	void RemoveInstance(Model* model, size_t index);
+
+	void LoadInterfaceObject(InterfaceObject* object);
+	void UnloadInterfaceObject(InterfaceObject* object);
+
+	void LoadInterface(InterfaceObject* object);
+	void UnloadInterface(InterfaceObject* object);
 
 	void Start();
 	void Stop();

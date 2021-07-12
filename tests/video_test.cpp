@@ -274,6 +274,25 @@ int main()
 
 	video->LoadModel(md);
 
+	InterfaceObject interf1;
+	interf1.textureName = "../src/client/video/textures/skybox.png";
+	interf1.area.x0 = -0.9;
+	interf1.area.y0 = -0.9;
+	interf1.area.x1 = -0.4;
+	interf1.area.y1 = -0.4;
+	interf1.active = true;
+
+	InterfaceObject interf2;
+	interf2.textureName = "../src/client/video/textures/viking_room.png";
+	interf2.area.x0 = -0.9;
+	interf2.area.y0 = 0.7;
+	interf2.area.x1 = -0.4;
+	interf2.area.y1 = 0.9;
+	interf2.active = true;
+
+	video->LoadInterface(&interf1);
+	video->LoadInterface(&interf2);
+
 	std::thread videoThr(VideoController::thr, &videoController);
 
 	sleep(5);
@@ -294,6 +313,9 @@ int main()
 
 	video->UnloadModel(md);
 	video->DestroyModel(md);
+
+	video->UnloadInterface(&interf1);
+	video->UnloadInterface(&interf2);
 
 	return 0;
 }
