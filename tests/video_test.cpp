@@ -2,7 +2,10 @@
 #include <chrono>
 #include <cmath>
 #include <thread>
+#include <mutex>
 #include "../src/client/video/video.h"
+
+#include <iostream>
 
 class CameraController
 {
@@ -202,44 +205,95 @@ public:
 	}
 };
 
+class VideoController
+{
+	Video* video;
+
+public:
+	VideoController()
+	{
+		video = new Video("Test App", 800, 600);
+	}
+
+	~VideoController()
+	{
+		delete video;
+	}
+
+	Video* GetVideo()
+	{
+		return video;
+	}
+
+	static void thr(VideoController* controller)
+	{
+		controller->video->Start();
+	}
+};
+
 int main()
 {
-	Video video("Test App", 800, 600);
+	VideoController videoController;
+
+	Video* video = videoController.GetVideo();
 
 	glm::vec3 pos(2.0f, 2.0f, 2.0f);
 	glm::vec3 targ(0.0f, 0.0f, 0.0f);
 	glm::vec3 up(0.0f, 0.0f, 1.0f);
 
-	video.SetCamera(&pos, &targ, &up);
+	video->SetCamera(&pos, &targ, &up);
 
-	CameraController controller(&video);
+	CameraController controller(video);
 
 	std::thread camThr(CameraController::thr, &controller);
 
-	video.CreateSkybox("../src/client/video/textures/skybox.png");
+	video->CreateSkybox("../src/client/video/textures/skybox.png");
 
 	std::string modelName("../src/client/video/models/viking_room.obj");
-	Model* md = video.CreateModel(&modelName);
+	Model* md = video->CreateModel(&modelName);
 
 	md->SetTextureName("../src/client/video/textures/viking_room.png");
 
-	md->modelPosition = glm::rotate(
+	auto& inst1 = video->AddInstance(md);
+	auto& inst2 = video->AddInstance(md);
+
+	inst1.modelPosition = glm::mat4(1.0f);
+
+	inst1.active = true;
+
+	inst2.modelPosition = glm::translate(
 		glm::mat4(1.0f),
-		glm::radians(0.0f),
+		glm::vec3(0.0f, 2.0f, 0.0f));
+
+	inst2.modelPosition = glm::rotate(
+		inst2.modelPosition,
+		glm::radians(-90.0f),
 		glm::vec3(0.0f, 0.0f, 1.0f));
 
-	md->active = true;
+	inst2.active = true;
 
-	video.LoadModel(md);
+	video->LoadModel(md);
 
-	video.Start();
+	std::thread videoThr(VideoController::thr, &videoController);
+
+	sleep(5);
+
+	while (video->Work()) {
+		inst1.modelPosition = glm::translate(
+			inst1.modelPosition,
+			glm::vec3(0.0f, 0.0001f, 0.0f));
+
+		usleep(1000);
+	}
+
+	videoThr.join();
 
 	controller.op = false;
 
 	camThr.join();
 
-	video.UnloadModel(md);
-	video.DestroyModel(md);
+	video->UnloadModel(md);
+	video->DestroyModel(md);
 
 	return 0;
 }

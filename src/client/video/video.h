@@ -20,46 +20,132 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-
+class Video;
 class Model;
+
+class GPUMemoryManager
+{
+public:
+	struct MemoryAllocationProperties
+	{
+		uint32_t size;
+		uint32_t offset;
+		VkDeviceMemory memory;
+
+	};
+
+private:
+	uint32_t partSize;
+	uint32_t memoryTypeIndex;
+	uint32_t alignment;
+	VkDevice device;
+	std::vector<VkDeviceMemory> partitions;
+	std::vector<std::vector<bool>> partitionData;
+
+	void AddPartition();
+
+public:
+	GPUMemoryManager(
+		VkDevice device,
+		uint32_t partSize,
+		uint32_t memoryTypeIndex,
+		uint32_t alignment);
+	~GPUMemoryManager();
+
+	MemoryAllocationProperties Allocate(uint32_t size);
+	void Free(MemoryAllocationProperties properties);
+};
+
+class Model
+{
+	friend class Video;
+
+public:
+	typedef uint32_t VertexIndexType;
+
+	struct Vertex
+	{
+		glm::vec3 pos;
+		glm::vec3 color;
+		glm::vec2 texCoord;
+
+		static VkVertexInputBindingDescription GetBindingDescription();
+		static std::vector<VkVertexInputAttributeDescription>
+			GetAttributeDescriptions();
+
+		bool operator==(const Vertex& vertex) const
+		{
+			return
+				pos == vertex.pos &&
+				color == vertex.color &&
+				texCoord == vertex.texCoord;
+		}
+	};
+
+	struct InstanceDescriptor
+	{
+		glm::mat4 modelPosition;
+		VkDescriptorPool descriptorPool;
+		std::vector<VkDescriptorSet> descriptorSets;
+
+		std::vector<VkBuffer> uniformBuffers;
+		std::vector<GPUMemoryManager::MemoryAllocationProperties>
+			uniformBufferMemory;
+
+		bool active;
+		std::vector<bool> free;
+	};
+
+private:
+	struct UniformBufferObject
+	{
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
+	};
+
+	std::vector<Vertex> vertices;
+	std::vector<VertexIndexType> indices;
+
+	std::string textureName;
+
+	VkBuffer vertexBuffer;
+	GPUMemoryManager::MemoryAllocationProperties vertexBufferMemory;
+
+	VkBuffer indexBuffer;
+	GPUMemoryManager::MemoryAllocationProperties indexBufferMemory;
+
+	bool loaded;
+
+	std::list<InstanceDescriptor> instances;
+
+	uint32_t textureMipLevels;
+	VkImage textureImage;
+	VkSampler textureSampler;
+	VkImageView textureImageView;
+	GPUMemoryManager::MemoryAllocationProperties textureImageMemory;
+
+	Model()
+	{ }
+
+	~Model()
+	{ }
+
+public:
+	void UpdateBuffers(
+		const std::vector<Vertex>& vertices,
+		const std::vector<VertexIndexType>& indices);
+
+	void SetTextureName(const std::string& name);
+
+	size_t GetInstanceCount();
+	InstanceDescriptor& GetInstance(size_t index);
+};
 
 class Video
 {
 public:
 	//Subclasses
-	class GPUMemoryManager
-	{
-	public:
-		struct MemoryAllocationProperties
-		{
-			uint32_t size;
-			uint32_t offset;
-			VkDeviceMemory memory;
-
-		};
-
-	private:
-		uint32_t partSize;
-		uint32_t memoryTypeIndex;
-		uint32_t alignment;
-		VkDevice device;
-		std::vector<VkDeviceMemory> partitions;
-		std::vector<std::vector<bool>> partitionData;
-
-		void AddPartition();
-
-	public:
-		GPUMemoryManager(
-			VkDevice device,
-			uint32_t partSize,
-			uint32_t memoryTypeIndex,
-			uint32_t alignment);
-		~GPUMemoryManager();
-
-		MemoryAllocationProperties Allocate(uint32_t size);
-		void Free(MemoryAllocationProperties properties);
-	};
-
 	class Camera
 	{
 	public:
@@ -98,6 +184,8 @@ private:
 	std::vector<const char*> validationLayers;
 
 	bool work;
+
+	float FOV;
 
 	Camera camera;
 	std::mutex cameraMutex;
@@ -184,6 +272,8 @@ private:
 	bool allowDescriptorPoolCreation;
 	void CreateDescriptorPools();
 	void DestroyDescriptorPools();
+	void CreateDescriptorPools(Model* model);
+	void DestroyDescriptorPools(Model* model);
 	void CreateDescriptorPool(VkDescriptorPool& descriptorPool);
 	void DestroyDescriptorPool(VkDescriptorPool& descriptorPool);
 
@@ -192,12 +282,20 @@ private:
 	void DestroyDescriptorSets();
 	void CreateDescriptorSets(Model* model);
 	void DestroyDescriptorSets(Model* model);
+	void CreateDescriptorSets(
+		Model* model,
+		Model::InstanceDescriptor& instance);
+	void DestroyDescriptorSets(
+		Model* model,
+		Model::InstanceDescriptor& instance);
 
 	bool allowUniformBufferCreation;
 	void CreateUniformBuffers();
 	void DestroyUniformBuffers();
 	void CreateUniformBuffers(Model* model);
 	void DestroyUniformBuffers(Model* model);
+	void CreateUniformBuffers(Model::InstanceDescriptor& instance);
+	void DestroyUniformBuffers(Model::InstanceDescriptor& instance);
 
 	bool allowVertexBufferCreation;
 	void CreateVertexBuffers();
@@ -411,8 +509,16 @@ public:
 	void LoadModel(Model* model);
 	void UnloadModel(Model* model);
 
+	Model::InstanceDescriptor& AddInstance(Model* model);
+	void RemoveInstance(Model* model, size_t index);
+
 	void Start();
 	void Stop();
+
+	bool Work()
+	{
+		return work;
+	}
 
 	void SetCamera(
 		const glm::vec3* position,
@@ -442,83 +548,6 @@ public:
 	void SetScrollCallback(
 		void* object,
 		void (*callback)(double, double, void*));
-};
-
-class Model
-{
-	friend class Video;
-
-public:
-	typedef uint32_t VertexIndexType;
-
-	struct Vertex
-	{
-		glm::vec3 pos;
-		glm::vec3 color;
-		glm::vec2 texCoord;
-
-		static VkVertexInputBindingDescription GetBindingDescription();
-		static std::vector<VkVertexInputAttributeDescription>
-			GetAttributeDescriptions();
-
-		bool operator==(const Vertex& vertex) const
-		{
-			return
-				pos == vertex.pos &&
-				color == vertex.color &&
-				texCoord == vertex.texCoord;
-		}
-	};
-
-private:
-	struct UniformBufferObject
-	{
-		glm::mat4 model;
-		glm::mat4 view;
-		glm::mat4 proj;
-	};
-
-	std::vector<Vertex> vertices;
-	std::vector<VertexIndexType> indices;
-
-	std::string textureName;
-
-	VkBuffer vertexBuffer;
-	Video::GPUMemoryManager::MemoryAllocationProperties vertexBufferMemory;
-
-	VkBuffer indexBuffer;
-	Video::GPUMemoryManager::MemoryAllocationProperties indexBufferMemory;
-
-	bool loaded;
-
-	VkDescriptorPool descriptorPool;
-	std::vector<VkDescriptorSet> descriptorSets;
-
-	uint32_t textureMipLevels;
-	VkImage textureImage;
-	VkSampler textureSampler;
-	VkImageView textureImageView;
-	Video::GPUMemoryManager::MemoryAllocationProperties textureImageMemory;
-
-	std::vector<VkBuffer> uniformBuffers;
-	std::vector<Video::GPUMemoryManager::MemoryAllocationProperties>
-		uniformBufferMemory;
-
-	Model()
-	{ }
-
-	~Model()
-	{ }
-
-public:
-	bool active;
-	glm::mat4 modelPosition;
-
-	void UpdateBuffers(
-		const std::vector<Vertex>& vertices,
-		const std::vector<VertexIndexType>& indices);
-
-	void SetTextureName(const std::string& name);
 };
 
 #endif

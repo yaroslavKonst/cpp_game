@@ -21,6 +21,7 @@
 Video::Video(const std::string& name, int width, int height)
 {
 	ApplicationName = name;
+	FOV = 45.0f;
 
 	InitWindow(width, height);
 	InitVulkan();
@@ -775,9 +776,11 @@ void Video::LoadSkybox(std::string fileName)
 
 	skybox = new Model();
 
+	skybox->instances.resize(1);
+
 	skybox->SetTextureName(fileName);
-	skybox->modelPosition = glm::mat4(1.0f);
-	skybox->active = true;
+	skybox->instances.front().modelPosition = glm::mat4(1.0f);
+	skybox->instances.front().active = true;
 	skybox->loaded = false;
 
 	const double h0 = 0.0;
@@ -844,7 +847,7 @@ void Video::LoadSkybox(std::string fileName)
 	CreateIndexBuffer(skybox);
 	CreateTextureImage(skybox);
 	CreateUniformBuffers(skybox);
-	CreateDescriptorPool(skybox->descriptorPool);
+	CreateDescriptorPools(skybox);
 	CreateDescriptorSets(skybox);
 
 	skybox->loaded = true;
@@ -856,7 +859,7 @@ void Video::DestroySkybox()
 		return;
 	}
 
-	DestroyDescriptorPool(skybox->descriptorPool);
+	DestroyDescriptorPools(skybox);
 	DestroyUniformBuffers(skybox);
 	DestroyTextureImage(skybox);
 	DestroyIndexBuffer(skybox);
@@ -1053,7 +1056,7 @@ void Video::DestroyImageViews()
 void Video::CreateDescriptorPools()
 {
 	for (Model* model : models) {
-		CreateDescriptorPool(model->descriptorPool);
+		CreateDescriptorPools(model);
 	}
 
 	allowDescriptorPoolCreation = true;
@@ -1065,7 +1068,21 @@ void Video::DestroyDescriptorPools()
 	allowDescriptorSetCreation = false;
 
 	for (Model* model : models) {
-		DestroyDescriptorPool(model->descriptorPool);
+		DestroyDescriptorPools(model);
+	}
+}
+
+void Video::CreateDescriptorPools(Model* model)
+{
+	for (auto& instance: model->instances) {
+		CreateDescriptorPool(instance.descriptorPool);
+	}
+}
+
+void Video::DestroyDescriptorPools(Model* model)
+{
+	for (auto& instance: model->instances) {
+		DestroyDescriptorPool(instance.descriptorPool);
 	}
 }
 
@@ -1123,10 +1140,27 @@ void Video::DestroyUniformBuffers()
 
 void Video::CreateUniformBuffers(Model* model)
 {
+	for (auto& instance : model->instances) {
+		CreateUniformBuffers(instance);
+	}
+}
+
+void Video::DestroyUniformBuffers(Model* model)
+{
+	for (auto& instance : model->instances) {
+		DestroyUniformBuffers(instance);
+	}
+}
+
+void Video::CreateUniformBuffers(Model::InstanceDescriptor& instance)
+{
+	instance.free.clear();
+	instance.free.resize(swapchainImages.size(), true);
+
 	VkDeviceSize bufferSize = sizeof(Model::UniformBufferObject);
 
-	model->uniformBuffers.resize(swapchainImages.size());
-	model->uniformBufferMemory.resize(swapchainImages.size());
+	instance.uniformBuffers.resize(swapchainImages.size());
+	instance.uniformBufferMemory.resize(swapchainImages.size());
 
 	for (size_t i = 0; i < swapchainImages.size(); ++i) {
 		CreateBuffer(
@@ -1135,17 +1169,21 @@ void Video::CreateUniformBuffers(Model* model)
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			MANAGER_UNIFORM,
-			model->uniformBuffers[i],
-			model->uniformBufferMemory[i]);
+			instance.uniformBuffers[i],
+			instance.uniformBufferMemory[i]);
 	}
 }
 
-void Video::DestroyUniformBuffers(Model* model)
+void Video::DestroyUniformBuffers(Model::InstanceDescriptor& instance)
 {
 	for (size_t i = 0; i < swapchainImages.size(); ++i) {
-		vkDestroyBuffer(device, model->uniformBuffers[i], nullptr);
+		vkDestroyBuffer(
+			device,
+			instance.uniformBuffers[i],
+			nullptr);
+
 		uniformBufferMemoryManager->Free(
-			model->uniformBufferMemory[i]);
+			instance.uniformBufferMemory[i]);
 	}
 }
 
@@ -1160,30 +1198,42 @@ void Video::CreateDescriptorSets()
 
 void Video::CreateDescriptorSets(Model* model)
 {
+	for (auto& instance : model->instances) {
+		CreateDescriptorSets(model, instance);
+	}
+}
+
+void Video::CreateDescriptorSets(
+	Model* model,
+	Model::InstanceDescriptor& instance)
+{
 	std::vector<VkDescriptorSetLayout> layouts(
 		swapchainImages.size(),
 		descriptorSetLayout);
 
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = model->descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
-	allocInfo.pSetLayouts = layouts.data();
+	instance.descriptorSets.resize(swapchainImages.size());
 
-	model->descriptorSets.resize(swapchainImages.size());
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType =
+		VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = instance.descriptorPool;
+	allocInfo.descriptorSetCount =
+		static_cast<uint32_t>(layouts.size());
+	allocInfo.pSetLayouts = layouts.data();
 
 	VkResult res = vkAllocateDescriptorSets(
 		device,
 		&allocInfo,
-		model->descriptorSets.data());
+		instance.descriptorSets.data());
 
 	if (res != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets");
+		throw std::runtime_error(
+			"failed to allocate descriptor sets");
 	}
 
-	for (size_t i = 0; i < model->descriptorSets.size(); ++i) {
+	for (size_t i = 0; i < instance.descriptorSets.size(); ++i) {
 		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = model->uniformBuffers[i];
+		bufferInfo.buffer = instance.uniformBuffers[i];
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(Model::UniformBufferObject);
 
@@ -1197,7 +1247,7 @@ void Video::CreateDescriptorSets(Model* model)
 
 		descriptorWrites[0].sType =
 			VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = model->descriptorSets[i];
+		descriptorWrites[0].dstSet = instance.descriptorSets[i];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType =
@@ -1209,7 +1259,7 @@ void Video::CreateDescriptorSets(Model* model)
 
 		descriptorWrites[1].sType =
 			VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = model->descriptorSets[i];
+		descriptorWrites[1].dstSet = instance.descriptorSets[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType =
@@ -2988,7 +3038,7 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			skyboxGraphicsPipeline);
 	}
 
-	if (skybox && skybox->active) {
+	if (skybox && skybox->instances.front().active) {
 		VkBuffer vertexBuffers[] = {skybox->vertexBuffer};
 		VkDeviceSize offsets[] = {0};
 
@@ -3011,7 +3061,7 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			skyboxPipelineLayout,
 			0,
 			1,
-			&skybox->descriptorSets[imageIndex],
+			&skybox->instances.front().descriptorSets[imageIndex],
 			0,
 			nullptr);
 
@@ -3052,10 +3102,6 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 	}
 
 	for (Model* model : models) {
-		if (!model->active) {
-			continue;
-		}
-
 		VkBuffer vertexBuffers[] = {model->vertexBuffer};
 		VkDeviceSize offsets[] = {0};
 
@@ -3072,23 +3118,32 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			0,
 			VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(
-			commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			pipelineLayout,
-			0,
-			1,
-			&model->descriptorSets[imageIndex],
-			0,
-			nullptr);
+		for (auto& instance : model->instances) {
+			if (!instance.active) {
+				instance.free[imageIndex] = true;
+				continue;
+			}
 
-		vkCmdDrawIndexed(
-			commandBuffer,
-			static_cast<uint32_t>(model->indices.size()),
-			1,
-			0,
-			0,
-			0);
+			instance.free[imageIndex] = false;
+
+			vkCmdBindDescriptorSets(
+				commandBuffer,
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				pipelineLayout,
+				0,
+				1,
+				&instance.descriptorSets[imageIndex],
+				0,
+				nullptr);
+
+			vkCmdDrawIndexed(
+				commandBuffer,
+				static_cast<uint32_t>(model->indices.size()),
+				1,
+				0,
+				0,
+				0);
+		}
 	}
 
 	vkCmdEndRenderPass(commandBuffer);
@@ -3109,7 +3164,7 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 	Model::UniformBufferObject ubo;
 
 	ubo.proj = glm::perspective(
-		glm::radians(45.0f),
+		glm::radians(FOV),
 		float(swapchainExtent.width) /
 		float(swapchainExtent.height),
 		0.1f,
@@ -3122,15 +3177,17 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 		camera.up);
 
 	if (skybox) {
+		auto& skyboxInstance = skybox->instances.front();
+
 		ubo.model = glm::translate(
-			skybox->modelPosition,
+			skyboxInstance.modelPosition,
 			camera.position);
 
 		void* data;
 		VkResult res = vkMapMemory(
 			device,
-			skybox->uniformBufferMemory[imageIndex].memory,
-			skybox->uniformBufferMemory[imageIndex].offset,
+			skyboxInstance.uniformBufferMemory[imageIndex].memory,
+			skyboxInstance.uniformBufferMemory[imageIndex].offset,
 			sizeof(ubo),
 			0,
 			&data);
@@ -3142,29 +3199,36 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(
 			device, 
-			skybox->uniformBufferMemory[imageIndex].memory);
+			skyboxInstance.uniformBufferMemory[imageIndex].memory);
 	}
 
-	for (Model* model : models) {	
-		ubo.model = model->modelPosition;
+	for (Model* model : models) {
+		for (auto& instance : model->instances) {
+			if (!instance.active) {
+				continue;
+			}
 
-		void* data;
-		VkResult res = vkMapMemory(
-			device,
-			model->uniformBufferMemory[imageIndex].memory,
-			model->uniformBufferMemory[imageIndex].offset,
-			sizeof(ubo),
-			0,
-			&data);
+			ubo.model = instance.modelPosition;
 
-		if (res != VK_SUCCESS) {
-			throw std::runtime_error("failed to map memory");
+			void* data;
+			VkResult res = vkMapMemory(
+				device,
+				instance.uniformBufferMemory[imageIndex].memory,
+				instance.uniformBufferMemory[imageIndex].offset,
+				sizeof(ubo),
+				0,
+				&data);
+
+			if (res != VK_SUCCESS) {
+				throw std::runtime_error(
+					"failed to map memory");
+			}
+
+			memcpy(data, &ubo, sizeof(ubo));
+			vkUnmapMemory(
+				device, 
+				instance.uniformBufferMemory[imageIndex].memory);
 		}
-
-		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(
-			device, 
-			model->uniformBufferMemory[imageIndex].memory);
 	}
 
 	cameraMutex.unlock();
@@ -3416,7 +3480,6 @@ Model* Video::CreateModel(std::string* fileName)
 	}
 
 	model->loaded = false;
-	model->active = false;
 
 	return model;
 }
@@ -3445,7 +3508,7 @@ void Video::LoadModel(Model* model)
 	}
 
 	if (allowDescriptorPoolCreation) {
-		CreateDescriptorPool(model->descriptorPool);
+		CreateDescriptorPools(model);
 	}
 
 	if (allowDescriptorSetCreation) {
@@ -3460,7 +3523,7 @@ void Video::LoadModel(Model* model)
 void Video::UnloadModel(Model* model)
 {
 	if (allowDescriptorPoolCreation) {
-		DestroyDescriptorPool(model->descriptorPool);
+		DestroyDescriptorPools(model);
 	}
 
 	if (allowUniformBufferCreation) {
@@ -3484,10 +3547,46 @@ void Video::UnloadModel(Model* model)
 	models.erase(model);
 }
 
+Model::InstanceDescriptor& Video::AddInstance(Model* model)
+{
+	Model::InstanceDescriptor instance;
+	instance.active = false;
+	instance.modelPosition = glm::mat4(1.0f);
+
+	if (model->loaded) {
+		CreateUniformBuffers(instance);
+		CreateDescriptorPool(instance.descriptorPool);
+		CreateDescriptorSets(model, instance);
+	}
+
+	model->instances.push_back(instance);
+
+	return model->instances.back();
+}
+
+void Video::RemoveInstance(Model* model, size_t index)
+{
+	auto it = model->instances.begin();
+
+	for (size_t idx = 0; idx < index; ++idx) {
+		++it;
+	}
+
+	Model::InstanceDescriptor& instance = *it;
+
+	if (model->loaded) {
+		DestroyDescriptorPool(instance.descriptorPool);
+		DestroyUniformBuffers(instance);
+	}
+
+	model->instances.erase(it);
+}
+
 void Video::Start()
 {
 	work = true;
 	MainLoop();
+	work = false;
 }
 
 void Video::Stop()
@@ -3578,7 +3677,7 @@ void Video::SetScrollCallback(
 }
 
 // GPUMemoryManager
-Video::GPUMemoryManager::GPUMemoryManager(
+GPUMemoryManager::GPUMemoryManager(
 	VkDevice device,
 	uint32_t partSize,
 	uint32_t memoryTypeIndex,
@@ -3592,14 +3691,14 @@ Video::GPUMemoryManager::GPUMemoryManager(
 	AddPartition();
 }
 
-Video::GPUMemoryManager::~GPUMemoryManager()
+GPUMemoryManager::~GPUMemoryManager()
 {
 	for (const auto& memory : partitions) {
 		vkFreeMemory(device, memory, nullptr);
 	}
 }
 
-void Video::GPUMemoryManager::AddPartition()
+void GPUMemoryManager::AddPartition()
 {
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -3618,8 +3717,8 @@ void Video::GPUMemoryManager::AddPartition()
 	partitionData.push_back(std::vector<bool>(partSize, false));
 }
 
-Video::GPUMemoryManager::MemoryAllocationProperties
-Video::GPUMemoryManager::Allocate(uint32_t size)
+GPUMemoryManager::MemoryAllocationProperties
+GPUMemoryManager::Allocate(uint32_t size)
 {
 	uint32_t sizeInSectors = size / alignment + 1;
 
@@ -3679,8 +3778,8 @@ Video::GPUMemoryManager::Allocate(uint32_t size)
 	return props;
 }
 
-void Video::GPUMemoryManager::Free(
-	Video::GPUMemoryManager::MemoryAllocationProperties allocation)
+void GPUMemoryManager::Free(
+	GPUMemoryManager::MemoryAllocationProperties allocation)
 {
 	size_t partIdx = 0;
 
@@ -3718,6 +3817,23 @@ void Model::SetTextureName(const std::string& name)
 	textureName = name;
 }
 
+size_t Model::GetInstanceCount()
+{
+	return instances.size();
+}
+
+Model::InstanceDescriptor& Model::GetInstance(size_t index)
+{
+	auto it = instances.begin();
+
+	for (size_t idx = 0; idx < index; ++idx) {
+		++it;
+	}
+
+	return *it;
+}
+
+// Model::Vertex
 VkVertexInputBindingDescription Model::Vertex::GetBindingDescription()
 {
 	VkVertexInputBindingDescription bindingDescription{};
