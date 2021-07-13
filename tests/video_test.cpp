@@ -233,6 +233,11 @@ public:
 
 class InterfaceTestObject: public InterfaceObject
 {
+public:
+	InterfaceTestObject(bool v) : InterfaceObject(v)
+	{ }
+
+private:
 	virtual bool MouseButton(int button, int action)
 	{
 		std::cout << "Button action\n";
@@ -244,6 +249,13 @@ class InterfaceTestObject: public InterfaceObject
 		if (inArea) {
 			std::cout << "Cursor " << posX << " " << posY << "\n";
 		}
+
+		return false;
+	}
+
+	virtual bool Scroll(double posX, double posY)
+	{
+		std::cout << "Scroll " << posX << " " << posY << "\n";
 
 		return false;
 	}
@@ -292,7 +304,7 @@ int main()
 
 	video->LoadModel(md);
 
-	InterfaceObject interf1;
+	InterfaceObject interf1(true);
 	interf1.textureName = "../src/client/video/textures/skybox.png";
 	interf1.area.x0 = -0.9;
 	interf1.area.y0 = -0.9;
@@ -301,7 +313,7 @@ int main()
 	interf1.active = true;
 	interf1.depth = 0;
 
-	InterfaceObject interf3;
+	InterfaceObject interf3(true);
 	interf3.textureName = "../src/client/video/textures/skybox.png";
 	interf3.area.x0 = -0.8;
 	interf3.area.y0 = -0.8;
@@ -310,7 +322,7 @@ int main()
 	interf3.active = true;
 	interf3.depth = 4;
 
-	InterfaceTestObject interf2;
+	InterfaceTestObject interf2(true);
 	interf2.textureName = "../src/client/video/textures/viking_room.png";
 	interf2.area.x0 = -0.9;
 	interf2.area.y0 = 0.7;
@@ -319,9 +331,18 @@ int main()
 	interf2.active = true;
 	interf2.depth = 1;
 
+	InterfaceTestObject interf4(false);
+	interf4.area.x0 = 0.6;
+	interf4.area.y0 = 0.7;
+	interf4.area.x1 = 0.9;
+	interf4.area.y1 = 0.9;
+	interf4.active = true;
+	interf4.depth = 1;
+
 	video->LoadInterface(&interf1);
 	video->LoadInterface(&interf2);
 	video->LoadInterface(&interf3);
+	video->LoadInterface(&interf4);
 
 	std::thread videoThr(VideoController::thr, &videoController);
 
@@ -347,6 +368,7 @@ int main()
 	video->UnloadInterface(&interf1);
 	video->UnloadInterface(&interf2);
 	video->UnloadInterface(&interf3);
+	video->UnloadInterface(&interf4);
 
 	return 0;
 }

@@ -695,7 +695,9 @@ void Video::CreateTextureImages()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		CreateTextureImage(objectDesc.interfaceObject);
+		if (objectDesc.interfaceObject->visual) {
+			CreateTextureImage(objectDesc.interfaceObject);
+		}
 	}
 
 	allowTextureImageCreation = true;
@@ -710,7 +712,9 @@ void Video::DestroyTextureImages()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		DestroyTextureImage(objectDesc.interfaceObject);
+		if (objectDesc.interfaceObject->visual) {
+			DestroyTextureImage(objectDesc.interfaceObject);
+		}
 	}
 }
 
@@ -1216,8 +1220,10 @@ void Video::CreateDescriptorPools()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		CreateDescriptorPool(
-			objectDesc.interfaceObject->descriptorPool);
+		if (objectDesc.interfaceObject->visual) {
+			CreateDescriptorPool(
+				objectDesc.interfaceObject->descriptorPool);
+		}
 	}
 
 	allowDescriptorPoolCreation = true;
@@ -1233,8 +1239,10 @@ void Video::DestroyDescriptorPools()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		DestroyDescriptorPool(
-			objectDesc.interfaceObject->descriptorPool);
+		if (objectDesc.interfaceObject->visual) {
+			DestroyDescriptorPool(
+				objectDesc.interfaceObject->descriptorPool);
+		}
 	}
 }
 
@@ -1293,7 +1301,9 @@ void Video::CreateUniformBuffers()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		CreateUniformBuffers(objectDesc.interfaceObject);
+		if (objectDesc.interfaceObject->visual) {
+			CreateUniformBuffers(objectDesc.interfaceObject);
+		}
 	}
 
 	allowUniformBufferCreation = true;
@@ -1308,7 +1318,9 @@ void Video::DestroyUniformBuffers()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		DestroyUniformBuffers(objectDesc.interfaceObject);
+		if (objectDesc.interfaceObject->visual) {
+			DestroyUniformBuffers(objectDesc.interfaceObject);
+		}
 	}
 }
 
@@ -1403,7 +1415,9 @@ void Video::CreateDescriptorSets()
 	}
 
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
-		CreateDescriptorSets(objectDesc.interfaceObject);
+		if (objectDesc.interfaceObject->visual) {
+			CreateDescriptorSets(objectDesc.interfaceObject);
+		}
 	}
 
 	allowDescriptorSetCreation = true;
@@ -3865,6 +3879,10 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
 		InterfaceObject* object = objectDesc.interfaceObject;
 
+		if (!object->visual) {
+			continue;
+		}
+
 		if (!object->active) {
 			object->free[imageIndex] = true;
 			continue;
@@ -3975,7 +3993,7 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
 		InterfaceObject* object = objectDesc.interfaceObject;
 
-		if (!object->active) {
+		if (!object->active || !object->visual) {
 			continue;
 		}
 
@@ -4315,20 +4333,22 @@ void Video::UnloadModel(Model* model)
 
 void Video::LoadInterface(InterfaceObject* object)
 {
-	if (allowTextureImageCreation) {
-		CreateTextureImage(object);
-	}
+	if (object->visual) {
+		if (allowTextureImageCreation) {
+			CreateTextureImage(object);
+		}
 
-	if (allowUniformBufferCreation) {
-		CreateUniformBuffers(object);
-	}
+		if (allowUniformBufferCreation) {
+			CreateUniformBuffers(object);
+		}
 
-	if (allowDescriptorPoolCreation) {
-		CreateDescriptorPool(object->descriptorPool);
-	}
+		if (allowDescriptorPoolCreation) {
+			CreateDescriptorPool(object->descriptorPool);
+		}
 
-	if (allowDescriptorSetCreation) {
-		CreateDescriptorSets(object);
+		if (allowDescriptorSetCreation) {
+			CreateDescriptorSets(object);
+		}
 	}
 
 	object->loaded = true;
@@ -4339,16 +4359,18 @@ void Video::LoadInterface(InterfaceObject* object)
 
 void Video::UnloadInterface(InterfaceObject* object)
 {
-	if (allowDescriptorPoolCreation) {
-		DestroyDescriptorPool(object->descriptorPool);
-	}
+	if (object->visual) {
+		if (allowDescriptorPoolCreation) {
+			DestroyDescriptorPool(object->descriptorPool);
+		}
 
-	if (allowUniformBufferCreation) {
-		DestroyUniformBuffers(object);
-	}
+		if (allowUniformBufferCreation) {
+			DestroyUniformBuffers(object);
+		}
 
-	if (allowTextureImageCreation) {
-		DestroyTextureImage(object);
+		if (allowTextureImageCreation) {
+			DestroyTextureImage(object);
+		}
 	}
 
 	object->loaded = false;

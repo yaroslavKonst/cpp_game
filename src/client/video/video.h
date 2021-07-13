@@ -170,6 +170,8 @@ class InterfaceObject
 	VkImageView textureImageView;
 	GPUMemoryManager::MemoryAllocationProperties textureImageMemory;
 
+	bool visual;
+
 public:
 	Area area;
 	std::string textureName;
@@ -177,10 +179,11 @@ public:
 
 	float depth;
 
-	InterfaceObject()
+	InterfaceObject(bool v)
 	{
 		active = false;
 		loaded = false;
+		visual = v;
 	}
 
 	virtual ~InterfaceObject()
