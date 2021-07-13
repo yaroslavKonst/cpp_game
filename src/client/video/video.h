@@ -146,8 +146,6 @@ class InterfaceObject
 {
 	friend class Video;
 
-	float z;
-
 	struct Area
 	{
 		float x0;
@@ -186,11 +184,20 @@ public:
 	virtual ~InterfaceObject()
 	{ }
 
-	virtual void MouseButton(int button, int action)
-	{ }
+	virtual bool MouseButton(int button, int action)
+	{
+		return true;
+	}
 
-	virtual void CursorMove(double posX, double posY)
-	{ }
+	virtual bool CursorMove(double posX, double posY, bool inArea)
+	{
+		return true;
+	}
+
+	virtual bool Scroll(double offsetX, double offsetY)
+	{
+		return true;
+	}
 };
 
 class Video
@@ -238,8 +245,12 @@ private:
 
 	float FOV;
 
+	double cursorX;
+	double cursorY;
+
 	Camera camera;
 	std::mutex cameraMutex;
+	bool cameraCursor;
 
 	std::set<Model*> models;
 	std::set<InterfaceObject*> interfaceObjects;

@@ -231,6 +231,24 @@ public:
 	}
 };
 
+class InterfaceTestObject: public InterfaceObject
+{
+	virtual bool MouseButton(int button, int action)
+	{
+		std::cout << "Button action\n";
+		return false;
+	}
+
+	virtual bool CursorMove(double posX, double posY, bool inArea)
+	{
+		if (inArea) {
+			std::cout << "Cursor " << posX << " " << posY << "\n";
+		}
+
+		return false;
+	}
+};
+
 int main()
 {
 	VideoController videoController;
@@ -282,7 +300,7 @@ int main()
 	interf1.area.y1 = -0.4;
 	interf1.active = true;
 
-	InterfaceObject interf2;
+	InterfaceTestObject interf2;
 	interf2.textureName = "../src/client/video/textures/viking_room.png";
 	interf2.area.x0 = -0.9;
 	interf2.area.y0 = 0.7;

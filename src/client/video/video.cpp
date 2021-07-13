@@ -92,6 +92,7 @@ void Video::InitVulkan()
 	allowDescriptorSetCreation = false;
 	allowTextureImageCreation = false;
 	framebufferResized = false;
+	cameraCursor = false;
 
 	cursorMoveController = nullptr;
 	cursorMoveCallback = nullptr;
@@ -2943,6 +2944,50 @@ void Video::CursorMoveCallback(GLFWwindow* window, double xpos, double ypos)
 	Video* video = reinterpret_cast<Video*>(
 		glfwGetWindowUserPointer(window));
 
+	video->cursorX = xpos;
+	video->cursorY = ypos;
+
+	float X = video->cursorX / video->swapchainExtent.width * 2.0 - 1.0;
+	float Y = video->cursorY / video->swapchainExtent.height * 2.0 - 1.0;
+
+	if (!video->cameraCursor) {
+		for (InterfaceObject* object : video->interfaceObjects) {
+			if (!object->active) {
+				continue;
+			}
+
+			bool inArea =
+				X >= object->area.x0 &&
+				X <= object->area.x1 &&
+				Y >= object->area.y0 &&
+				Y <= object->area.y1;
+
+			if (inArea) {
+				float localX = X - object->area.x0;
+				localX /= abs(
+					object->area.x1 - object->area.x0);
+				localX = localX * 2.0 - 1.0;
+
+				float localY = Y - object->area.y0;
+				localY /= abs(
+					object->area.y1 - object->area.y0);
+				localY = localY * 2.0 - 1.0;
+
+				bool passAction =
+					object->CursorMove(
+						localX,
+						localY,
+						true);
+
+				if (!passAction) {
+					return;
+				}
+			} else {
+				object->CursorMove(0, 0, false);
+			}
+		}
+	}
+
 	if (video->cursorMoveCallback) {
 		video->cursorMoveCallback(
 			xpos,
@@ -2960,6 +3005,32 @@ void Video::MouseButtonCallback(
 	Video* video = reinterpret_cast<Video*>(
 		glfwGetWindowUserPointer(window));
 
+	float X = video->cursorX / video->swapchainExtent.width * 2.0 - 1.0;
+	float Y = video->cursorY / video->swapchainExtent.height * 2.0 - 1.0;
+
+	if (!video->cameraCursor) {
+		for (InterfaceObject* object : video->interfaceObjects) {
+			if (!object->active) {
+				continue;
+			}
+
+			bool inArea =
+				X >= object->area.x0 &&
+				X <= object->area.x1 &&
+				Y >= object->area.y0 &&
+				Y <= object->area.y1;
+
+			if (inArea) {
+				bool passAction =
+					object->MouseButton(button, action);
+
+				if (!passAction) {
+					return;
+				}
+			}
+		}
+	}
+
 	if (video->mouseButtonCallback) {
 		video->mouseButtonCallback(
 			button,
@@ -2975,6 +3046,32 @@ void Video::ScrollCallback(
 {
 	Video* video = reinterpret_cast<Video*>(
 		glfwGetWindowUserPointer(window));
+
+	float X = video->cursorX / video->swapchainExtent.width * 2.0 - 1.0;
+	float Y = video->cursorY / video->swapchainExtent.height * 2.0 - 1.0;
+
+	if (!video->cameraCursor) {
+		for (InterfaceObject* object : video->interfaceObjects) {
+			if (!object->active) {
+				continue;
+			}
+
+			bool inArea =
+				X >= object->area.x0 &&
+				X <= object->area.x1 &&
+				Y >= object->area.y0 &&
+				Y <= object->area.y1;
+
+			if (inArea) {
+				bool passAction =
+					object->Scroll(xoffset, yoffset);
+
+				if (!passAction) {
+					return;
+				}
+			}
+		}
+	}
 
 	if (video->scrollCallback) {
 		video->scrollCallback(
@@ -4353,11 +4450,13 @@ void Video::SetMouseButtonCallback(
 
 void Video::SetNormalMouseMode()
 {
+	cameraCursor = false;
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
 void Video::SetCameraMouseMode()
 {
+	cameraCursor = true;
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
