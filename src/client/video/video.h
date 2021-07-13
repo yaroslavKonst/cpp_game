@@ -175,6 +175,8 @@ public:
 	std::string textureName;
 	bool active;
 
+	float depth;
+
 	InterfaceObject()
 	{
 		active = false;
@@ -253,7 +255,27 @@ private:
 	bool cameraCursor;
 
 	std::set<Model*> models;
-	std::set<InterfaceObject*> interfaceObjects;
+
+	struct InterfaceObjectDescriptor
+	{
+		InterfaceObjectDescriptor(InterfaceObject* object, float d)
+		{
+			interfaceObject = object;
+			depth = d;
+		}
+
+		float depth;
+		InterfaceObject* interfaceObject;
+
+		bool operator<(const InterfaceObjectDescriptor& desc) const
+		{
+			return depth < desc.depth ||
+				(depth == desc.depth &&
+				interfaceObject < desc.interfaceObject);
+		}
+	};
+
+	std::set<InterfaceObjectDescriptor> interfaceObjects;
 
 	uint32_t maxFramesInFlight;
 	uint32_t currentFrame;

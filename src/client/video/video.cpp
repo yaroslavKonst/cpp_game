@@ -694,8 +694,8 @@ void Video::CreateTextureImages()
 		CreateTextureImage(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		CreateTextureImage(object);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		CreateTextureImage(objectDesc.interfaceObject);
 	}
 
 	allowTextureImageCreation = true;
@@ -709,8 +709,8 @@ void Video::DestroyTextureImages()
 		DestroyTextureImage(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		DestroyTextureImage(object);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		DestroyTextureImage(objectDesc.interfaceObject);
 	}
 }
 
@@ -1215,8 +1215,9 @@ void Video::CreateDescriptorPools()
 		CreateDescriptorPools(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		CreateDescriptorPool(object->descriptorPool);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		CreateDescriptorPool(
+			objectDesc.interfaceObject->descriptorPool);
 	}
 
 	allowDescriptorPoolCreation = true;
@@ -1231,8 +1232,9 @@ void Video::DestroyDescriptorPools()
 		DestroyDescriptorPools(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		DestroyDescriptorPool(object->descriptorPool);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		DestroyDescriptorPool(
+			objectDesc.interfaceObject->descriptorPool);
 	}
 }
 
@@ -1290,8 +1292,8 @@ void Video::CreateUniformBuffers()
 		CreateUniformBuffers(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		CreateUniformBuffers(object);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		CreateUniformBuffers(objectDesc.interfaceObject);
 	}
 
 	allowUniformBufferCreation = true;
@@ -1305,8 +1307,8 @@ void Video::DestroyUniformBuffers()
 		DestroyUniformBuffers(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		DestroyUniformBuffers(object);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		DestroyUniformBuffers(objectDesc.interfaceObject);
 	}
 }
 
@@ -1400,8 +1402,8 @@ void Video::CreateDescriptorSets()
 		CreateDescriptorSets(model);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
-		CreateDescriptorSets(object);
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		CreateDescriptorSets(objectDesc.interfaceObject);
 	}
 
 	allowDescriptorSetCreation = true;
@@ -2951,7 +2953,11 @@ void Video::CursorMoveCallback(GLFWwindow* window, double xpos, double ypos)
 	float Y = video->cursorY / video->swapchainExtent.height * 2.0 - 1.0;
 
 	if (!video->cameraCursor) {
-		for (InterfaceObject* object : video->interfaceObjects) {
+		for (const InterfaceObjectDescriptor& objectDesc :
+			video->interfaceObjects)
+		{
+			InterfaceObject* object = objectDesc.interfaceObject;
+
 			if (!object->active) {
 				continue;
 			}
@@ -3009,7 +3015,11 @@ void Video::MouseButtonCallback(
 	float Y = video->cursorY / video->swapchainExtent.height * 2.0 - 1.0;
 
 	if (!video->cameraCursor) {
-		for (InterfaceObject* object : video->interfaceObjects) {
+		for (const InterfaceObjectDescriptor& objectDesc :
+			video->interfaceObjects)
+		{
+			InterfaceObject* object = objectDesc.interfaceObject;
+
 			if (!object->active) {
 				continue;
 			}
@@ -3051,7 +3061,11 @@ void Video::ScrollCallback(
 	float Y = video->cursorY / video->swapchainExtent.height * 2.0 - 1.0;
 
 	if (!video->cameraCursor) {
-		for (InterfaceObject* object : video->interfaceObjects) {
+		for (const InterfaceObjectDescriptor& objectDesc :
+			video->interfaceObjects)
+		{
+			InterfaceObject* object = objectDesc.interfaceObject;
+
 			if (!object->active) {
 				continue;
 			}
@@ -3848,7 +3862,9 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			interfaceGraphicsPipeline);
 	}
 
-	for (InterfaceObject* object : interfaceObjects) {
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		InterfaceObject* object = objectDesc.interfaceObject;
+
 		if (!object->active) {
 			object->free[imageIndex] = true;
 			continue;
@@ -3956,7 +3972,9 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 
 	cameraMutex.unlock();
 
-	for (InterfaceObject* object : interfaceObjects) {
+	for (const InterfaceObjectDescriptor& objectDesc : interfaceObjects) {
+		InterfaceObject* object = objectDesc.interfaceObject;
+
 		if (!object->active) {
 			continue;
 		}
@@ -4315,7 +4333,8 @@ void Video::LoadInterface(InterfaceObject* object)
 
 	object->loaded = true;
 
-	interfaceObjects.insert(object);
+	interfaceObjects.insert(
+		InterfaceObjectDescriptor(object, object->depth));
 }
 
 void Video::UnloadInterface(InterfaceObject* object)
@@ -4334,7 +4353,8 @@ void Video::UnloadInterface(InterfaceObject* object)
 
 	object->loaded = false;
 
-	interfaceObjects.erase(object);
+	interfaceObjects.erase(
+		InterfaceObjectDescriptor(object, object->depth));
 }
 
 Model::InstanceDescriptor& Video::AddInstance(Model* model)
