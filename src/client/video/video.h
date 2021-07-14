@@ -8,6 +8,7 @@
 #include <set>
 #include <algorithm>
 #include <mutex>
+#include <atomic>
 
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
@@ -19,6 +20,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
+
+#include "../../common/copy_free_list.h"
 
 class Video;
 class Model;
@@ -84,7 +87,14 @@ public:
 
 	struct InstanceDescriptor
 	{
+		InstanceDescriptor()
+		{ }
+
+		InstanceDescriptor(const InstanceDescriptor& desc) = delete;
+
 		glm::mat4 modelPosition;
+		std::mutex mpMutex;
+
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSet> descriptorSets;
 
@@ -92,8 +102,10 @@ public:
 		std::vector<GPUMemoryManager::MemoryAllocationProperties>
 			uniformBufferMemory;
 
-		bool active;
+		std::atomic<bool> active;
+
 		std::vector<bool> free;
+		std::mutex freeMutex;
 	};
 
 private:
@@ -117,7 +129,7 @@ private:
 
 	bool loaded;
 
-	std::list<InstanceDescriptor> instances;
+	CopyFreeList<InstanceDescriptor> instances;
 
 	uint32_t textureMipLevels;
 	VkImage textureImage;
@@ -156,6 +168,7 @@ class InterfaceObject
 
 	bool loaded;
 	std::vector<bool> free;
+	std::mutex freeMutex;
 
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
@@ -175,7 +188,7 @@ class InterfaceObject
 public:
 	Area area;
 	std::string textureName;
-	bool active;
+	std::atomic<bool> active;
 
 	float depth;
 
@@ -246,7 +259,10 @@ private:
 	bool validate;
 	std::vector<const char*> validationLayers;
 
-	bool work;
+	std::atomic<bool> work;
+
+	std::mutex drawMutex;
+	std::mutex recreateMutex;
 
 	float FOV;
 
@@ -255,7 +271,7 @@ private:
 
 	Camera camera;
 	std::mutex cameraMutex;
-	bool cameraCursor;
+	std::atomic<bool> cameraCursor;
 
 	std::set<Model*> models;
 
@@ -475,6 +491,7 @@ private:
 	};
 
 	std::vector<KeyBinding> keyBindings;
+	std::mutex keyBindMutex;
 
 	static void KeyActionCallback(
 		GLFWwindow* window,

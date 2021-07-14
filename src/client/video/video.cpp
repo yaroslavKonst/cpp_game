@@ -195,8 +195,12 @@ void Video::RecreateSwapchain()
 
 	vkDeviceWaitIdle(device);
 
+	recreateMutex.lock();
+
 	DestroySwapchain();
 	CreateSwapchain();
+
+	recreateMutex.unlock();
 }
 
 void Video::CreateInstance()
@@ -936,7 +940,7 @@ void Video::LoadSkybox(std::string fileName)
 
 	skybox = new Model();
 
-	skybox->instances.resize(1);
+	skybox->instances.add();
 
 	skybox->SetTextureName(fileName);
 	skybox->instances.front().modelPosition = glm::mat4(1.0f);
@@ -1003,12 +1007,16 @@ void Video::LoadSkybox(std::string fileName)
 
 	skybox->UpdateBuffers(vertices, indices);
 
+	recreateMutex.lock();
+
 	CreateVertexBuffer(skybox);
 	CreateIndexBuffer(skybox);
 	CreateTextureImage(skybox);
 	CreateUniformBuffers(skybox);
 	CreateDescriptorPools(skybox);
 	CreateDescriptorSets(skybox);
+
+	recreateMutex.unlock();
 
 	skybox->loaded = true;
 }
@@ -1340,8 +1348,10 @@ void Video::DestroyUniformBuffers(Model* model)
 
 void Video::CreateUniformBuffers(Model::InstanceDescriptor& instance)
 {
+	instance.freeMutex.lock();
 	instance.free.clear();
 	instance.free.resize(swapchainImages.size(), true);
+	instance.freeMutex.unlock();
 
 	VkDeviceSize bufferSize = sizeof(Model::UniformBufferObject);
 
@@ -1375,8 +1385,10 @@ void Video::DestroyUniformBuffers(Model::InstanceDescriptor& instance)
 
 void Video::CreateUniformBuffers(InterfaceObject* object)
 {
+	object->freeMutex.lock();
 	object->free.clear();
 	object->free.resize(swapchainImages.size(), true);
+	object->freeMutex.unlock();
 
 	VkDeviceSize bufferSize = sizeof(InterfaceObject::Area);
 
@@ -2638,9 +2650,13 @@ void Video::DrawFrame()
 			UINT64_MAX);
 	}
 
+	drawMutex.lock();
+
 	UpdateUniformBuffers(imageIndex);
 
 	CreateCommandBuffer(imageIndex);
+
+	drawMutex.unlock();
 
 	imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
@@ -2948,11 +2964,15 @@ void Video::KeyActionCallback(
 	Video* video = reinterpret_cast<Video*>(
 		glfwGetWindowUserPointer(window));
 
+	video->keyBindMutex.lock();
+
 	for (const auto& keyBinding : video->keyBindings) {
 		if (keyBinding.key == key && keyBinding.action == action) {
 			keyBinding.callback(key, action, keyBinding.object);
 		}
 	}
+
+	video->keyBindMutex.unlock();
 }
 
 void Video::CursorMoveCallback(GLFWwindow* window, double xpos, double ypos)
@@ -3825,11 +3845,15 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 
 		for (auto& instance : model->instances) {
 			if (!instance.active) {
+				instance.freeMutex.lock();
 				instance.free[imageIndex] = true;
+				instance.freeMutex.unlock();
 				continue;
 			}
 
+			instance.freeMutex.lock();
 			instance.free[imageIndex] = false;
+			instance.freeMutex.unlock();
 
 			vkCmdBindDescriptorSets(
 				commandBuffer,
@@ -3884,11 +3908,15 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 		}
 
 		if (!object->active) {
+			object->freeMutex.lock();
 			object->free[imageIndex] = true;
+			object->freeMutex.unlock();
 			continue;
 		}
 
+		object->freeMutex.lock();
 		object->free[imageIndex] = false;
+		object->freeMutex.unlock();
 
 		vkCmdBindDescriptorSets(
 			commandBuffer,
@@ -3965,7 +3993,9 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 				continue;
 			}
 
+			instance.mpMutex.lock();
 			ubo.model = instance.modelPosition;
+			instance.mpMutex.unlock();
 
 			void* data;
 			VkResult res = vkMapMemory(
@@ -4275,6 +4305,9 @@ void Video::DestroyModel(Model* model)
 
 void Video::LoadModel(Model* model)
 {
+	recreateMutex.lock();
+	drawMutex.lock();
+
 	if (allowVertexBufferCreation) {
 		CreateVertexBuffer(model);
 	}
@@ -4302,10 +4335,20 @@ void Video::LoadModel(Model* model)
 	model->loaded = true;
 
 	models.insert(model);
+
+	drawMutex.unlock();
+	recreateMutex.unlock();
 }
 
 void Video::UnloadModel(Model* model)
 {
+	while (model->instances.size() > 0) {
+		RemoveInstance(model, 0);
+	}
+
+	recreateMutex.lock();
+	drawMutex.lock();
+
 	if (allowDescriptorPoolCreation) {
 		DestroyDescriptorPools(model);
 	}
@@ -4329,10 +4372,16 @@ void Video::UnloadModel(Model* model)
 	model->loaded = false;
 
 	models.erase(model);
+
+	drawMutex.unlock();
+	recreateMutex.unlock();
 }
 
 void Video::LoadInterface(InterfaceObject* object)
 {
+	recreateMutex.lock();
+	drawMutex.lock();
+
 	if (object->visual) {
 		if (allowTextureImageCreation) {
 			CreateTextureImage(object);
@@ -4355,10 +4404,32 @@ void Video::LoadInterface(InterfaceObject* object)
 
 	interfaceObjects.insert(
 		InterfaceObjectDescriptor(object, object->depth));
+
+	drawMutex.unlock();
+	recreateMutex.unlock();
 }
 
 void Video::UnloadInterface(InterfaceObject* object)
 {
+	bool ready;
+
+	object->active = false;
+
+	do {
+		ready = true;
+
+		object->freeMutex.lock();
+
+		for (bool val : object->free) {
+			ready = ready && val;
+		}
+
+		object->freeMutex.unlock();
+	} while (work && !ready);
+
+	recreateMutex.lock();
+	drawMutex.lock();
+
 	if (object->visual) {
 		if (allowDescriptorPoolCreation) {
 			DestroyDescriptorPool(object->descriptorPool);
@@ -4377,23 +4448,34 @@ void Video::UnloadInterface(InterfaceObject* object)
 
 	interfaceObjects.erase(
 		InterfaceObjectDescriptor(object, object->depth));
+
+	drawMutex.unlock();
+	recreateMutex.unlock();
 }
 
 Model::InstanceDescriptor& Video::AddInstance(Model* model)
 {
-	Model::InstanceDescriptor instance;
+	drawMutex.lock();
+
+	model->instances.add();
+
+	Model::InstanceDescriptor& instance = model->instances.back();
 	instance.active = false;
 	instance.modelPosition = glm::mat4(1.0f);
 
 	if (model->loaded) {
+		recreateMutex.lock();
+
 		CreateUniformBuffers(instance);
 		CreateDescriptorPool(instance.descriptorPool);
 		CreateDescriptorSets(model, instance);
+
+		recreateMutex.unlock();
 	}
 
-	model->instances.push_back(instance);
+	drawMutex.unlock();
 
-	return model->instances.back();
+	return instance;
 }
 
 void Video::RemoveInstance(Model* model, size_t index)
@@ -4406,12 +4488,36 @@ void Video::RemoveInstance(Model* model, size_t index)
 
 	Model::InstanceDescriptor& instance = *it;
 
+	instance.active = false;
+
+	bool ready;
+
+	do {
+		ready = true;
+
+		instance.freeMutex.lock();
+
+		for (bool val : instance.free) {
+			ready = ready && val;
+		}
+
+		instance.freeMutex.unlock();
+	} while (work && !ready);
+
+	drawMutex.lock();
+
 	if (model->loaded) {
+		recreateMutex.lock();
+
 		DestroyDescriptorPool(instance.descriptorPool);
 		DestroyUniformBuffers(instance);
+
+		recreateMutex.unlock();
 	}
 
 	model->instances.erase(it);
+
+	drawMutex.unlock();
 }
 
 void Video::Start()
@@ -4466,12 +4572,16 @@ void Video::BindKey(
 	binding.object = object;
 	binding.callback = callback;
 
+	keyBindMutex.lock();
 	keyBindings.push_back(binding);
+	keyBindMutex.unlock();
 }
 
 void Video::ClearKeyBindings()
 {
+	keyBindMutex.lock();
 	keyBindings.clear();
+	keyBindMutex.unlock();
 }
 
 void Video::SetCursorMoveCallback(
