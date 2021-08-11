@@ -22,7 +22,7 @@ public:
 
 	Connection Accept();
 
-	std::pair<Connection, Connection> GetPipe();
+	static std::pair<Connection, Connection> GetPipe();
 
 private:
 	int _descriptor;

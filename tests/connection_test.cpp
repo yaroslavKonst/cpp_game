@@ -67,14 +67,13 @@ TEST(connection, network)
 
 TEST(connection, pipes)
 {
-	Listener lst("0.0.0.0", 0);
 	Connection node1;
 	Connection node2;
 
 	ASSERT_TRUE(!node1.isValid());
 	ASSERT_TRUE(!node2.isValid());
 
-	std::pair<Connection, Connection> conns = lst.GetPipe();
+	std::pair<Connection, Connection> conns = Listener::GetPipe();
 	node1 = conns.first;
 	node2 = conns.second;
 
@@ -113,8 +112,6 @@ TEST(connection, pipes)
 
 	ASSERT_TRUE(!node1.isValid());
 	ASSERT_TRUE(!node2.isValid());
-
-	lst.CloseSocket();
 }
 
 int main(int argc, char **argv)

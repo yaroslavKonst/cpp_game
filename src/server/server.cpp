@@ -176,15 +176,24 @@ void IOModule::Thread(IOModule* ioModule)
 
 		ioModule->playerListMutex.lock();
 
-		for (Player& player : ioModule->players) {
-			int fd = player.connection.GetReadHandle();
+		std::list<ioModule->players.iterator> invalidPlayers;
+
+		auto end = ioModule->players.end();
+
+		for (auto it = ioModule->players.begin(); it != end; ++it) {
+			int fd = it->connection.GetReadHandle();
 
 			if (FD_ISSET(fd, &readSet)) {
-				player.inMutex.lock();
+				it->inMutex.lock();
 
 				Event event;
 				event.type = Event::MESSAGE;
 				event.message = player.connection.Receive();
+
+				if (!it->connection.isValid()) {
+					invalidPlayers.push_back(it);
+					continue;
+				}
 
 				player.inQueue.push_back(event);
 
@@ -199,13 +208,20 @@ void IOModule::Thread(IOModule* ioModule)
 				if (FD_ISSET(fd, &writeSet)) {
 					Event& event = player.outQueue.front();
 
-					player.connection.Send(event.message);
+					if (player.connection.isValid()) {
+						player.connection.Send(
+							event.message);
+					}
 
 					player.outQueue.pop_front();
 				}
 			}
 
 			player.outMutex.unlock();
+		}
+
+		for (auto it : invalidPlayers) {
+			ioModule->players.erase(it);
 		}
 
 		ioModule->playerListMutex.unlock();
