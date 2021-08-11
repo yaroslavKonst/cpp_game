@@ -88,11 +88,16 @@ public:
 	struct InstanceDescriptor
 	{
 		InstanceDescriptor()
-		{ }
+		{
+			instanceCount = 1;
+		}
 
 		InstanceDescriptor(const InstanceDescriptor& desc) = delete;
 
+		int instanceCount;
+
 		glm::mat4 modelPosition;
+		std::vector<glm::mat4> instancePositions;
 		std::mutex mpMutex;
 
 		VkDescriptorPool descriptorPool;
@@ -101,6 +106,11 @@ public:
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<GPUMemoryManager::MemoryAllocationProperties>
 			uniformBufferMemory;
+
+		std::vector<VkBuffer> instanceUniformBuffers;
+		std::vector<GPUMemoryManager::MemoryAllocationProperties>
+			instanceUuniformBufferMemory;
+		std::atomic<bool> needBufferUpdate;
 
 		std::atomic<bool> active;
 

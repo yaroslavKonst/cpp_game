@@ -3868,7 +3868,7 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			vkCmdDrawIndexed(
 				commandBuffer,
 				static_cast<uint32_t>(model->indices.size()),
-				1,
+				instance.instanceCount,
 				0,
 				0,
 				0);

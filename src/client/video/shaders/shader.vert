@@ -1,11 +1,12 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 
 layout(binding = 0) uniform UniformBufferObject {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
-} ubo;
+} ubo[];
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inColor;
@@ -16,7 +17,10 @@ layout(location = 1) out vec2 fragTexCoord;
 
 void main()
 {
-	gl_Position = ubo.proj * ubo.view * ubo.model *
+	gl_Position =
+		ubo[gl_InstanceIndex].proj *
+		ubo[gl_InstanceIndex].view *
+		ubo[gl_InstanceIndex].model *
 		vec4(inPosition, 1.0);
 	fragColor = inColor;
 	fragTexCoord = inTexCoord;
