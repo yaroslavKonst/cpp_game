@@ -7,6 +7,9 @@
 
 #include <iostream>
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/transform.hpp>
+
 class CameraController
 {
 public:
@@ -284,10 +287,12 @@ int main()
 
 	md->SetTextureName("../src/client/video/textures/viking_room.png");
 
-	auto& inst1 = video->AddInstance(md);
-	auto& inst2 = video->AddInstance(md);
+	auto& inst1 = video->AddInstance(md, 1);
+	auto& inst2 = video->AddInstance(md, 3);
 
 	inst1.modelPosition = glm::mat4(1.0f);
+	inst1.partPosition = glm::mat4(1.0f);
+	inst1.instancePositions[0] = glm::mat4(1.0f);
 
 	inst1.active = true;
 
@@ -299,6 +304,18 @@ int main()
 		inst2.modelPosition,
 		glm::radians(-90.0f),
 		glm::vec3(0.0f, 0.0f, 1.0f));
+
+	inst2.partPosition = glm::mat4(1.0f);
+
+	inst2.instancePositions[0] = glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
+
+	inst2.instancePositions[1] = glm::translate(
+		glm::mat4(1.0f),
+		glm::vec3(0.0f, -2.0f, 0.0f));
+
+	inst2.instancePositions[2] = glm::translate(
+		glm::mat4(1.0f),
+		glm::vec3(0.0f, -4.0f, 0.0f));
 
 	inst2.active = true;
 

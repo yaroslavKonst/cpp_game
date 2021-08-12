@@ -69,10 +69,10 @@ public:
 	struct Vertex
 	{
 		glm::vec3 pos;
-		glm::vec3 color;
 		glm::vec2 texCoord;
 
-		static VkVertexInputBindingDescription GetBindingDescription();
+		static std::vector<VkVertexInputBindingDescription>
+			GetBindingDescription();
 		static std::vector<VkVertexInputAttributeDescription>
 			GetAttributeDescriptions();
 
@@ -80,7 +80,6 @@ public:
 		{
 			return
 				pos == vertex.pos &&
-				color == vertex.color &&
 				texCoord == vertex.texCoord;
 		}
 	};
@@ -88,15 +87,14 @@ public:
 	struct InstanceDescriptor
 	{
 		InstanceDescriptor()
-		{
-			instanceCount = 1;
-		}
+		{ }
 
 		InstanceDescriptor(const InstanceDescriptor& desc) = delete;
 
 		int instanceCount;
 
 		glm::mat4 modelPosition;
+		glm::mat4 partPosition;
 		std::vector<glm::mat4> instancePositions;
 		std::mutex mpMutex;
 
@@ -109,8 +107,10 @@ public:
 
 		std::vector<VkBuffer> instanceUniformBuffers;
 		std::vector<GPUMemoryManager::MemoryAllocationProperties>
-			instanceUuniformBufferMemory;
-		std::atomic<bool> needBufferUpdate;
+			instanceUniformBufferMemory;
+
+		std::vector<bool> needBufferUpdate;
+		std::mutex bufferUpdateMutex;
 
 		std::atomic<bool> active;
 
@@ -121,6 +121,7 @@ public:
 private:
 	struct UniformBufferObject
 	{
+		glm::mat4 part;
 		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 proj;
@@ -639,7 +640,7 @@ public:
 	void LoadModel(Model* model);
 	void UnloadModel(Model* model);
 
-	Model::InstanceDescriptor& AddInstance(Model* model);
+	Model::InstanceDescriptor& AddInstance(Model* model, int instCount);
 	void RemoveInstance(Model* model, size_t index);
 
 	void LoadInterfaceObject(InterfaceObject* object);

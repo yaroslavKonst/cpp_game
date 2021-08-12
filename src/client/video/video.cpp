@@ -944,7 +944,10 @@ void Video::LoadSkybox(std::string fileName)
 
 	skybox->SetTextureName(fileName);
 	skybox->instances.front().modelPosition = glm::mat4(1.0f);
+	skybox->instances.front().partPosition = glm::mat4(1.0f);
 	skybox->instances.front().active = true;
+	skybox->instances.front().instanceCount = 1;
+	skybox->instances.front().instancePositions.push_back(glm::mat4(1.0f));
 	skybox->loaded = false;
 
 	const double h0 = 0.0;
@@ -960,40 +963,40 @@ void Video::LoadSkybox(std::string fileName)
 
 	std::vector<Model::Vertex> vertices = {
 		// Bottom
-		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h2}},
-		{{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h2}},
-		{{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h3}},
-		{{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h3}},
+		{{-1.0f, -1.0f, -1.0f}, {v1, h2}},
+		{{1.0f, -1.0f, -1.0f}, {v2, h2}},
+		{{1.0f, 1.0f, -1.0f}, {v2, h3}},
+		{{-1.0f, 1.0f, -1.0f}, {v1, h3}},
 
 		// Top
-		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h1}},
-		{{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h1}},
-		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h0}},
-		{{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h0}},
+		{{-1.0f, -1.0f, 1.0f}, {v1, h1}},
+		{{1.0f, -1.0f, 1.0f}, {v2, h1}},
+		{{1.0f, 1.0f, 1.0f}, {v2, h0}},
+		{{-1.0f, 1.0f, 1.0f}, {v1, h0}},
 
 		// Front
-		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h2}},
-		{{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h2}},
-		{{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h1}},
-		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h1}},
+		{{-1.0f, -1.0f, -1.0f}, {v1, h2}},
+		{{1.0f, -1.0f, -1.0f}, {v2, h2}},
+		{{1.0f, -1.0f, 1.0f}, {v2, h1}},
+		{{-1.0f, -1.0f, 1.0f}, {v1, h1}},
 
 		// Back
-		{{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v4, h2}},
-		{{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h2}},
-		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h1}},
-		{{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v4, h1}},
+		{{-1.0f, 1.0f, -1.0f}, {v4, h2}},
+		{{1.0f, 1.0f, -1.0f}, {v3, h2}},
+		{{1.0f, 1.0f, 1.0f}, {v3, h1}},
+		{{-1.0f, 1.0f, 1.0f}, {v4, h1}},
 
 		// Left
-		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h2}},
-		{{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v0, h2}},
-		{{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v0, h1}},
-		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v1, h1}},
+		{{-1.0f, -1.0f, -1.0f}, {v1, h2}},
+		{{-1.0f, 1.0f, -1.0f}, {v0, h2}},
+		{{-1.0f, 1.0f, 1.0f}, {v0, h1}},
+		{{-1.0f, -1.0f, 1.0f}, {v1, h1}},
 
 		// Right
-		{{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h2}},
-		{{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h2}},
-		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v3, h1}},
-		{{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {v2, h1}}
+		{{1.0f, -1.0f, -1.0f}, {v2, h2}},
+		{{1.0f, 1.0f, -1.0f}, {v3, h2}},
+		{{1.0f, 1.0f, 1.0f}, {v3, h1}},
+		{{1.0f, -1.0f, 1.0f}, {v2, h1}}
 	};
 
 	std::vector<Model::VertexIndexType> indices = {
@@ -1354,9 +1357,16 @@ void Video::CreateUniformBuffers(Model::InstanceDescriptor& instance)
 	instance.freeMutex.unlock();
 
 	VkDeviceSize bufferSize = sizeof(Model::UniformBufferObject);
+	VkDeviceSize instanceBufferSize =
+		sizeof(glm::mat4) * instance.instanceCount;
 
 	instance.uniformBuffers.resize(swapchainImages.size());
 	instance.uniformBufferMemory.resize(swapchainImages.size());
+
+	instance.instanceUniformBuffers.resize(swapchainImages.size());
+	instance.instanceUniformBufferMemory.resize(swapchainImages.size());
+
+	instance.needBufferUpdate.resize(swapchainImages.size(), true);
 
 	for (size_t i = 0; i < swapchainImages.size(); ++i) {
 		CreateBuffer(
@@ -1367,6 +1377,15 @@ void Video::CreateUniformBuffers(Model::InstanceDescriptor& instance)
 			MANAGER_UNIFORM,
 			instance.uniformBuffers[i],
 			instance.uniformBufferMemory[i]);
+
+		CreateBuffer(
+			instanceBufferSize,
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			MANAGER_UNIFORM,
+			instance.instanceUniformBuffers[i],
+			instance.instanceUniformBufferMemory[i]);
 	}
 }
 
@@ -1380,6 +1399,14 @@ void Video::DestroyUniformBuffers(Model::InstanceDescriptor& instance)
 
 		uniformBufferMemoryManager->Free(
 			instance.uniformBufferMemory[i]);
+
+		vkDestroyBuffer(
+			device,
+			instance.instanceUniformBuffers[i],
+			nullptr);
+
+		uniformBufferMemoryManager->Free(
+			instance.instanceUniformBufferMemory[i]);
 	}
 }
 
@@ -1869,15 +1896,16 @@ void Video::CreateObjectGraphicsPipeline()
 		fragShaderStageInfo
 	};
 
-	auto bindingDescription = Model::Vertex::GetBindingDescription();
+	auto bindingDescriptions = Model::Vertex::GetBindingDescription();
 	auto attributeDescriptions =
 		Model::Vertex::GetAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType =
 		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.vertexBindingDescriptionCount =
+		static_cast<uint32_t>(bindingDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
 	vertexInputInfo.vertexAttributeDescriptionCount =
 		static_cast<uint32_t>(attributeDescriptions.size());
 	vertexInputInfo.pVertexAttributeDescriptions =
@@ -2056,15 +2084,16 @@ void Video::CreateSkyboxGraphicsPipeline()
 		fragShaderStageInfo
 	};
 
-	auto bindingDescription = Model::Vertex::GetBindingDescription();
+	auto bindingDescriptions = Model::Vertex::GetBindingDescription();
 	auto attributeDescriptions =
 		Model::Vertex::GetAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType =
 		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.vertexBindingDescriptionCount =
+		static_cast<uint32_t>(bindingDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
 	vertexInputInfo.vertexAttributeDescriptionCount =
 		static_cast<uint32_t>(attributeDescriptions.size());
 	vertexInputInfo.pVertexAttributeDescriptions =
@@ -2818,6 +2847,7 @@ bool Video::IsDeviceSuitable(VkPhysicalDevice device)
 		swapchainAdequate &&
 		deviceFeatures.geometryShader &&
 		deviceFeatures.samplerAnisotropy &&
+		deviceFeatures.shaderUniformBufferArrayDynamicIndexing &&
 		FindQueueFamilies(device).graphicsFamily.has_value() &&
 		FindQueueFamilies(device).presentFamily.has_value();
 
@@ -3764,13 +3794,18 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 	}
 
 	if (skybox && skybox->instances.front().active) {
-		VkBuffer vertexBuffers[] = {skybox->vertexBuffer};
-		VkDeviceSize offsets[] = {0};
+		VkBuffer vertexBuffers[] = {
+			skybox->vertexBuffer,
+			skybox->instances.front().instanceUniformBuffers[
+				imageIndex]
+		};
+
+		VkDeviceSize offsets[] = {0, 0};
 
 		vkCmdBindVertexBuffers(
 			commandBuffer,
 			0,
-			1,
+			2,
 			vertexBuffers,
 			offsets);
 
@@ -3854,6 +3889,19 @@ void Video::CreateCommandBuffer(uint32_t imageIndex)
 			instance.freeMutex.lock();
 			instance.free[imageIndex] = false;
 			instance.freeMutex.unlock();
+
+			VkBuffer vertexBuffers[] = {
+				instance.instanceUniformBuffers[imageIndex]
+			};
+
+			VkDeviceSize offsets[] = {0};
+
+			vkCmdBindVertexBuffers(
+				commandBuffer,
+				1,
+				1,
+				vertexBuffers,
+				offsets);
 
 			vkCmdBindDescriptorSets(
 				commandBuffer,
@@ -3968,6 +4016,39 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 			skyboxInstance.modelPosition,
 			camera.position);
 
+		ubo.part = glm::mat4(1.0f);
+
+		if (skyboxInstance.needBufferUpdate[imageIndex]) {
+			skyboxInstance.needBufferUpdate[imageIndex] = false;
+
+			void* data;
+			VkResult res = vkMapMemory(
+				device,
+				skyboxInstance.instanceUniformBufferMemory[
+					imageIndex].memory,
+				skyboxInstance.instanceUniformBufferMemory[
+					imageIndex].offset,
+				sizeof(glm::mat4) *
+					skyboxInstance.instanceCount,
+				0,
+				&data);
+
+			if (res != VK_SUCCESS) {
+				throw std::runtime_error(
+					"failed to map memory");
+			}
+
+			memcpy(
+				data,
+				skyboxInstance.instancePositions.data(),
+				sizeof(glm::mat4) *
+					skyboxInstance.instanceCount);
+			vkUnmapMemory(
+				device,
+				skyboxInstance.instanceUniformBufferMemory[
+					imageIndex].memory);
+		}
+
 		void* data;
 		VkResult res = vkMapMemory(
 			device,
@@ -3983,7 +4064,7 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(
-			device, 
+			device,
 			skyboxInstance.uniformBufferMemory[imageIndex].memory);
 	}
 
@@ -3995,6 +4076,39 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 
 			instance.mpMutex.lock();
 			ubo.model = instance.modelPosition;
+			ubo.part = instance.partPosition;
+
+			if (instance.needBufferUpdate[imageIndex]) {
+				instance.needBufferUpdate[imageIndex] = false;
+
+				void* data;
+				VkResult res = vkMapMemory(
+					device,
+					instance.instanceUniformBufferMemory[
+						imageIndex].memory,
+					instance.instanceUniformBufferMemory[
+						imageIndex].offset,
+					sizeof(glm::mat4) *
+						instance.instanceCount,
+					0,
+					&data);
+
+				if (res != VK_SUCCESS) {
+					throw std::runtime_error(
+						"failed to map memory");
+				}
+
+				memcpy(
+					data,
+					instance.instancePositions.data(),
+					sizeof(glm::mat4) *
+						instance.instanceCount);
+				vkUnmapMemory(
+					device,
+					instance.instanceUniformBufferMemory[
+						imageIndex].memory);
+			}
+
 			instance.mpMutex.unlock();
 
 			void* data;
@@ -4013,7 +4127,7 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 
 			memcpy(data, &ubo, sizeof(ubo));
 			vkUnmapMemory(
-				device, 
+				device,
 				instance.uniformBufferMemory[imageIndex].memory);
 		}
 	}
@@ -4043,7 +4157,7 @@ void Video::UpdateUniformBuffers(uint32_t imageIndex)
 
 		memcpy(data, &object->area, sizeof(InterfaceObject::Area));
 		vkUnmapMemory(
-			device, 
+			device,
 			object->uniformBufferMemory[imageIndex].memory);
 	}
 }
@@ -4056,8 +4170,7 @@ namespace std
 		size_t operator()(const Model::Vertex& vertex) const
 		{
 			return
-				((hash<glm::vec3>()(vertex.pos) ^
-				(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+				(hash<glm::vec3>()(vertex.pos)) ^
 				(hash<glm::vec2>()(vertex.texCoord) << 1);
 		}
 	};
@@ -4103,8 +4216,6 @@ void Video::LoadModelFromObj(Model* model, const std::string& fileName)
 				1.0 - attrib.texcoords[2 *
 					index.texcoord_index + 1]
 			};
-
-			vertex.color = {1.0f, 1.0f, 1.0f};
 
 			if (uniqueVertices.count(vertex) == 0) {
 				uniqueVertices[vertex] =
@@ -4453,7 +4564,7 @@ void Video::UnloadInterface(InterfaceObject* object)
 	recreateMutex.unlock();
 }
 
-Model::InstanceDescriptor& Video::AddInstance(Model* model)
+Model::InstanceDescriptor& Video::AddInstance(Model* model, int instCount)
 {
 	drawMutex.lock();
 
@@ -4462,6 +4573,9 @@ Model::InstanceDescriptor& Video::AddInstance(Model* model)
 	Model::InstanceDescriptor& instance = model->instances.back();
 	instance.active = false;
 	instance.modelPosition = glm::mat4(1.0f);
+	instance.partPosition = glm::mat4(1.0f);
+	instance.instanceCount = instCount;
+	instance.instancePositions.resize(instCount);
 
 	if (model->loaded) {
 		recreateMutex.lock();
@@ -4778,20 +4892,29 @@ Model::InstanceDescriptor& Model::GetInstance(size_t index)
 }
 
 // Model::Vertex
-VkVertexInputBindingDescription Model::Vertex::GetBindingDescription()
+std::vector<VkVertexInputBindingDescription>
+Model::Vertex::GetBindingDescription()
 {
 	VkVertexInputBindingDescription bindingDescription{};
 	bindingDescription.binding = 0;
 	bindingDescription.stride = sizeof(Model::Vertex);
 	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	return bindingDescription;
+	VkVertexInputBindingDescription instanceBindingDescription{};
+	instanceBindingDescription.binding = 1;
+	instanceBindingDescription.stride = sizeof(glm::mat4);
+	instanceBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+	return std::vector<VkVertexInputBindingDescription>({
+			bindingDescription,
+			instanceBindingDescription
+		});
 }
 
 std::vector<VkVertexInputAttributeDescription>
 Model::Vertex::GetAttributeDescriptions()
 {
-	std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions(6);
 
 	attributeDescriptions[0].binding = 0;
 	attributeDescriptions[0].location = 0;
@@ -4800,13 +4923,28 @@ Model::Vertex::GetAttributeDescriptions()
 
 	attributeDescriptions[1].binding = 0;
 	attributeDescriptions[1].location = 1;
-	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attributeDescriptions[1].offset = offsetof(Vertex, color);
+	attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[1].offset = offsetof(Vertex, texCoord);
 
-	attributeDescriptions[2].binding = 0;
+	attributeDescriptions[2].binding = 1;
 	attributeDescriptions[2].location = 2;
-	attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-	attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+	attributeDescriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributeDescriptions[2].offset = 0;
+
+	attributeDescriptions[3].binding = 1;
+	attributeDescriptions[3].location = 3;
+	attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributeDescriptions[3].offset = sizeof(glm::vec4);
+
+	attributeDescriptions[4].binding = 1;
+	attributeDescriptions[4].location = 4;
+	attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributeDescriptions[4].offset = sizeof(glm::vec4) * 2;
+
+	attributeDescriptions[5].binding = 1;
+	attributeDescriptions[5].location = 5;
+	attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributeDescriptions[5].offset = sizeof(glm::vec4) * 3;
 
 	return attributeDescriptions;
 }
