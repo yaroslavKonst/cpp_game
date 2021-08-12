@@ -215,7 +215,7 @@ class VideoController
 public:
 	VideoController()
 	{
-		video = new Video("Test App", 800, 600);
+		video = new Video("Test App", 1700, 900);
 	}
 
 	~VideoController()
@@ -360,6 +360,45 @@ int main()
 	video->LoadInterface(&interf2);
 	video->LoadInterface(&interf3);
 	video->LoadInterface(&interf4);
+
+
+	Model* leaves = video->CreateModel(nullptr);
+	leaves->SetTextureName("../src/client/video/textures/leaf.png");
+
+	std::vector<Model::Vertex> leafVertices = {
+		{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+		{{0.3f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+		{{0.2f, 0.0f, 1.0f}, {0.0f, 0.0f}}
+	};
+
+	std::vector<Model::VertexIndexType> leafIndices = {
+		0, 1, 2, 0, 2, 1
+	};
+
+	leaves->UpdateBuffers(leafVertices, leafIndices);
+
+	int leafWidth = 10;
+	int leafHeight = 10;
+
+	auto& leafInst = video->AddInstance(leaves, leafWidth * leafHeight);
+	leafInst.active = true;
+
+	leafInst.modelPosition = glm::mat4(1.0f);
+	leafInst.partPosition = glm::mat4(1.0f);
+
+	for (int x = 0; x < leafWidth; ++x) {
+		for (int y = 0; y < leafHeight; ++y) {
+			int idx = y * leafWidth + x;
+
+			leafInst.instancePositions[idx] =
+				glm::translate(glm::vec3(
+					float(x) * 0.1,
+					float(y) * 0.1,
+					-1.0f));
+		}
+	}
+
+	video->LoadModel(leaves);
 
 	std::thread videoThr(VideoController::thr, &videoController);
 

@@ -1366,7 +1366,11 @@ void Video::CreateUniformBuffers(Model::InstanceDescriptor& instance)
 	instance.instanceUniformBuffers.resize(swapchainImages.size());
 	instance.instanceUniformBufferMemory.resize(swapchainImages.size());
 
-	instance.needBufferUpdate.resize(swapchainImages.size(), true);
+	instance.needBufferUpdate.resize(swapchainImages.size());
+
+	for (size_t idx = 0; idx < instance.needBufferUpdate.size(); ++idx) {
+		instance.needBufferUpdate[idx] = true;
+	}
 
 	for (size_t i = 0; i < swapchainImages.size(); ++i) {
 		CreateBuffer(
@@ -1967,9 +1971,10 @@ void Video::CreateObjectGraphicsPipeline()
 		VK_COLOR_COMPONENT_G_BIT |
 		VK_COLOR_COMPONENT_B_BIT |
 		VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_FALSE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.blendEnable = VK_TRUE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	colorBlendAttachment.dstColorBlendFactor =
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
 	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
