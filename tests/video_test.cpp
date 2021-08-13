@@ -367,8 +367,8 @@ int main()
 
 	std::vector<Model::Vertex> leafVertices = {
 		{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-		{{0.3f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-		{{0.2f, 0.0f, 1.0f}, {0.0f, 0.0f}}
+		{{0.1f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+		{{-0.1f, 0.0f, 1.0f}, {0.0f, 0.0f}}
 	};
 
 	std::vector<Model::VertexIndexType> leafIndices = {
@@ -377,28 +377,60 @@ int main()
 
 	leaves->UpdateBuffers(leafVertices, leafIndices);
 
-	int leafWidth = 10;
-	int leafHeight = 10;
+	int leafWidth = 500;
+	int leafHeight = 500;
 
 	auto& leafInst = video->AddInstance(leaves, leafWidth * leafHeight);
 	leafInst.active = true;
 
 	leafInst.modelPosition = glm::mat4(1.0f);
-	leafInst.partPosition = glm::mat4(1.0f);
+	leafInst.partPosition = glm::scale(glm::vec3(0.1f, 0.1f, 0.1f));
 
 	for (int x = 0; x < leafWidth; ++x) {
 		for (int y = 0; y < leafHeight; ++y) {
 			int idx = y * leafWidth + x;
 
-			leafInst.instancePositions[idx] =
+			leafInst.instancePositions[idx] = glm::rotate(
 				glm::translate(glm::vec3(
-					float(x) * 0.1,
-					float(y) * 0.1,
-					-1.0f));
+					float(x) * 0.02,
+					float(y) * 0.02,
+					-0.2f)),
+				glm::radians(float(idx) * 7.0f),
+				glm::vec3(0.0f, 0.0f, 1.0f));
+
 		}
 	}
 
 	video->LoadModel(leaves);
+
+	Model* grass = video->CreateModel(nullptr);
+	grass->SetTextureName("../src/client/video/textures/grass.png");
+
+	std::vector<Model::Vertex> grassVertices = {
+		{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+		{{1.0f, 0.0f, 0.0f}, {10.0f, 0.0f}},
+		{{0.0f, 1.0f, 0.0f}, {0.0f, 10.0f}},
+		{{1.0f, 1.0f, 0.0f}, {10.0f, 10.0f}}
+	};
+
+	std::vector<Model::VertexIndexType> grassIndices = {
+		0, 1, 2, 3, 2, 1
+	};
+
+	grass->UpdateBuffers(grassVertices, grassIndices);
+
+	auto& grassInst = video->AddInstance(grass, 1);
+	grassInst.active = true;
+
+	grassInst.modelPosition = glm::mat4(1.0f);
+
+	grassInst.partPosition = glm::translate(
+		glm::scale(glm::vec3(10.0f, 10.0f, 1.0f)),
+		glm::vec3(0.0f, 0.0f, -0.2f));
+
+	grassInst.instancePositions[0] = glm::mat4(1.0f);
+
+	video->LoadModel(grass);
 
 	std::thread videoThr(VideoController::thr, &videoController);
 
@@ -408,6 +440,11 @@ int main()
 		inst1.modelPosition = glm::translate(
 			inst1.modelPosition,
 			glm::vec3(0.0f, 0.0001f, 0.0f));
+
+		leafInst.partPosition = glm::rotate(
+			leafInst.partPosition,
+			glm::radians(0.1f),
+			glm::vec3(0.0f, 0.0f, 1.0f));
 
 		usleep(1000);
 	}

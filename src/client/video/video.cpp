@@ -3541,7 +3541,7 @@ void Video::CreateBuffer(
 		if (!uniformBufferMemoryManager) {
 			uniformBufferMemoryManager = new GPUMemoryManager(
 				device,
-				8192,
+				65536,
 				FindMemoryType(
 					memRequirements.memoryTypeBits,
 					properties),
