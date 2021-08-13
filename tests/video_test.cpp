@@ -368,11 +368,13 @@ int main()
 	std::vector<Model::Vertex> leafVertices = {
 		{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
 		{{0.1f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-		{{-0.1f, 0.0f, 1.0f}, {0.0f, 0.0f}}
+		{{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+		{{0.1f, 0.0f, 1.0f}, {1.0f, 0.0f}}
 	};
 
 	std::vector<Model::VertexIndexType> leafIndices = {
-		0, 1, 2, 0, 2, 1
+		0, 1, 2, 0, 2, 1,
+		1, 2, 3, 1, 3, 2
 	};
 
 	leaves->UpdateBuffers(leafVertices, leafIndices);
