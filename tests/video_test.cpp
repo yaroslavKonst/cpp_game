@@ -368,15 +368,15 @@ int main()
 	leaves->UseTextureLinearFiltering(false);
 
 	std::vector<Model::Vertex> leafVertices = {
-		{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-		{{0.1f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-		{{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-		{{0.1f, 0.0f, 1.0f}, {1.0f, 0.0f}}
+		{{0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+		{{0.1f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+		{{0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+		{{0.1f, 0.0f, 1.0f}, {0.0f, 0.0f}}
 	};
 
 	std::vector<Model::VertexIndexType> leafIndices = {
 		0, 1, 2, 0, 2, 1,
-		1, 2, 3, 1, 3, 2
+		1, 3, 2, 1, 2, 3
 	};
 
 	leaves->UpdateBuffers(leafVertices, leafIndices);
@@ -399,7 +399,7 @@ int main()
 					float(x) * 0.02,
 					float(y) * 0.02,
 					-0.2f)),
-				glm::radians(float(idx) * 97.0f),
+				glm::radians(float(idx) * 0.0f),
 				glm::vec3(0.0f, 0.0f, 1.0f));
 
 		}
@@ -448,7 +448,7 @@ int main()
 
 		leafInst.partPosition = glm::rotate(
 			leafInst.partPosition,
-			glm::radians(0.1f),
+			glm::radians(0.01f),
 			glm::vec3(0.0f, 0.0f, 1.0f));
 
 		usleep(1000);
