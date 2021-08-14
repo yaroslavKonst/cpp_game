@@ -468,8 +468,8 @@ void Video::CreateTextureSampler(Model* model)
 {
 	VkSamplerCreateInfo samplerInfo{};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.magFilter = model->textureSamplerFilter;
+	samplerInfo.minFilter = model->textureSamplerFilter;
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -949,6 +949,7 @@ void Video::LoadSkybox(std::string fileName)
 	skybox->instances.front().instanceCount = 1;
 	skybox->instances.front().instancePositions.push_back(glm::mat4(1.0f));
 	skybox->loaded = false;
+	skybox->textureSamplerFilter = VK_FILTER_LINEAR;
 
 	const double h0 = 0.0;
 	const double h1 = 1.0 / 3.0;
@@ -4409,6 +4410,7 @@ Model* Video::CreateModel(std::string* fileName)
 		LoadModelFromObj(model, *fileName);
 	}
 
+	model->textureSamplerFilter = VK_FILTER_LINEAR;
 	model->loaded = false;
 
 	return model;
@@ -4894,6 +4896,15 @@ Model::InstanceDescriptor& Model::GetInstance(size_t index)
 	}
 
 	return *it;
+}
+
+void Model::UseTextureLinearFiltering(bool linearFiltering)
+{
+	if (linearFiltering) {
+		textureSamplerFilter = VK_FILTER_LINEAR;
+	} else {
+		textureSamplerFilter = VK_FILTER_NEAREST;
+	}
 }
 
 // Model::Vertex

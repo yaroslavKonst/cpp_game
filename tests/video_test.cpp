@@ -284,6 +284,7 @@ int main()
 
 	std::string modelName("../src/client/video/models/viking_room.obj");
 	Model* md = video->CreateModel(&modelName);
+	md->UseTextureLinearFiltering(true);
 
 	md->SetTextureName("../src/client/video/textures/viking_room.png");
 
@@ -364,6 +365,7 @@ int main()
 
 	Model* leaves = video->CreateModel(nullptr);
 	leaves->SetTextureName("../src/client/video/textures/leaf.png");
+	leaves->UseTextureLinearFiltering(false);
 
 	std::vector<Model::Vertex> leafVertices = {
 		{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
@@ -397,7 +399,7 @@ int main()
 					float(x) * 0.02,
 					float(y) * 0.02,
 					-0.2f)),
-				glm::radians(float(idx) * 7.0f),
+				glm::radians(float(idx) * 97.0f),
 				glm::vec3(0.0f, 0.0f, 1.0f));
 
 		}
@@ -407,6 +409,7 @@ int main()
 
 	Model* grass = video->CreateModel(nullptr);
 	grass->SetTextureName("../src/client/video/textures/grass.png");
+	grass->UseTextureLinearFiltering(true);
 
 	std::vector<Model::Vertex> grassVertices = {
 		{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},

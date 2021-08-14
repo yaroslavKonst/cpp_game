@@ -145,6 +145,7 @@ private:
 	uint32_t textureMipLevels;
 	VkImage textureImage;
 	VkSampler textureSampler;
+	VkFilter textureSamplerFilter;
 	VkImageView textureImageView;
 	GPUMemoryManager::MemoryAllocationProperties textureImageMemory;
 
@@ -160,6 +161,8 @@ public:
 		const std::vector<VertexIndexType>& indices);
 
 	void SetTextureName(const std::string& name);
+
+	void UseTextureLinearFiltering(bool linearFiltering);
 
 	size_t GetInstanceCount();
 	InstanceDescriptor& GetInstance(size_t index);
