@@ -1,5 +1,5 @@
 #LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
-LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr
+LD_VULKAN_FLAGS=-lglfw -lvulkan -ldl -lpthread -lX11 -lXrandr
 
 .PHONY: tests %_test
 
