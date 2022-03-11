@@ -1,0 +1,8 @@
+\babel@toc {russian}{}\relax 
+\contentsline {section}{\numberline {1}Падение}{2}{}%
+\contentsline {section}{\numberline {2}Первая разведка}{3}{}%
+\contentsline {section}{\numberline {3}Бункер}{3}{}%
+\contentsline {section}{\numberline {4}Дело серьёзное}{4}{}%
+\contentsline {section}{\numberline {5}Он --- это я?}{4}{}%
+\contentsline {section}{\numberline {6}Осознание}{5}{}%
+\contentsline {section}{\numberline {7}Жизнь}{5}{}%

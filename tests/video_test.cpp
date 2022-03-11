@@ -364,7 +364,8 @@ int main()
 
 
 	Model* leaves = video->CreateModel(nullptr);
-	leaves->SetTextureName("../src/client/video/textures/leaf.png");
+	leaves->SetTextureName(
+		"../src/client/video/textures/leaf_semi_solid.png");
 	leaves->UseTextureLinearFiltering(false);
 
 	std::vector<Model::Vertex> leafVertices = {
